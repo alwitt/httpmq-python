@@ -1,0 +1,8 @@
+black
+click
+flake8
+pylint
+pytest
+setuptools
+urllib3[secure,brotli]
+wheel

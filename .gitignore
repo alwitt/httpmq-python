@@ -1,2 +1,7 @@
 tmp/
 .vscode/
+.prep
+build/
+dist/
+*.egg-info/
+venv/
