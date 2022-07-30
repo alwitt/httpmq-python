@@ -11,8 +11,8 @@
 import re  # noqa: F401
 import sys  # noqa: F401
 
-from core.api_client import ApiClient, Endpoint as _Endpoint
-from core.model_utils import (  # noqa: F401
+from httpmq.core.api_client import ApiClient, Endpoint as _Endpoint
+from httpmq.core.model_utils import (  # noqa: F401
     check_allowed_values,
     check_validations,
     date,
@@ -21,9 +21,9 @@ from core.model_utils import (  # noqa: F401
     none_type,
     validate_and_convert_types,
 )
-from core.model.apis_api_rest_resp_data_message import ApisAPIRestRespDataMessage
-from core.model.dataplane_ack_seq_num import DataplaneAckSeqNum
-from core.model.goutils_rest_api_base_response import GoutilsRestAPIBaseResponse
+from httpmq.core.model.apis_api_rest_resp_data_message import ApisAPIRestRespDataMessage
+from httpmq.core.model.dataplane_ack_seq_num import DataplaneAckSeqNum
+from httpmq.core.model.goutils_rest_api_base_response import GoutilsRestAPIBaseResponse
 
 
 class DataplaneApi(object):

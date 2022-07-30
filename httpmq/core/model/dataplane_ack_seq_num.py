@@ -11,7 +11,7 @@
 import re  # noqa: F401
 import sys  # noqa: F401
 
-from core.model_utils import (  # noqa: F401
+from httpmq.core.model_utils import (  # noqa: F401
     ApiTypeError,
     ModelComposed,
     ModelNormal,
@@ -26,7 +26,7 @@ from core.model_utils import (  # noqa: F401
     validate_get_composed_info,
     OpenApiModel,
 )
-from core.exceptions import ApiAttributeError
+from httpmq.core.exceptions import ApiAttributeError
 
 
 class DataplaneAckSeqNum(ModelNormal):

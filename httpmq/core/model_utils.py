@@ -20,7 +20,7 @@ import uuid
 
 from dateutil.parser import parse
 
-from core.exceptions import (
+from httpmq.core.exceptions import (
     ApiKeyError,
     ApiAttributeError,
     ApiTypeError,

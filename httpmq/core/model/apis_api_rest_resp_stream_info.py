@@ -11,7 +11,7 @@
 import re  # noqa: F401
 import sys  # noqa: F401
 
-from core.model_utils import (  # noqa: F401
+from httpmq.core.model_utils import (  # noqa: F401
     ApiTypeError,
     ModelComposed,
     ModelNormal,
@@ -26,12 +26,16 @@ from core.model_utils import (  # noqa: F401
     validate_get_composed_info,
     OpenApiModel,
 )
-from core.exceptions import ApiAttributeError
+from httpmq.core.exceptions import ApiAttributeError
 
 
 def lazy_import():
-    from core.model.apis_api_rest_resp_stream_config import ApisAPIRestRespStreamConfig
-    from core.model.apis_api_rest_resp_stream_state import ApisAPIRestRespStreamState
+    from httpmq.core.model.apis_api_rest_resp_stream_config import (
+        ApisAPIRestRespStreamConfig,
+    )
+    from httpmq.core.model.apis_api_rest_resp_stream_state import (
+        ApisAPIRestRespStreamState,
+    )
 
     globals()["ApisAPIRestRespStreamConfig"] = ApisAPIRestRespStreamConfig
     globals()["ApisAPIRestRespStreamState"] = ApisAPIRestRespStreamState

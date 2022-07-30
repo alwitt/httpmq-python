@@ -5,7 +5,7 @@
 # raise a `RecursionError`.
 # In order to avoid this, import only the API that you directly need like:
 #
-#   from core.api.dataplane_api import DataplaneApi
+#   from httpmq.core.api.dataplane_api import DataplaneApi
 #
 # or import this package, but before doing it, use:
 #
@@ -13,5 +13,5 @@
 #   sys.setrecursionlimit(n)
 
 # Import APIs into API package:
-from core.api.dataplane_api import DataplaneApi
-from core.api.management_api import ManagementApi
+from httpmq.core.api.dataplane_api import DataplaneApi
+from httpmq.core.api.management_api import ManagementApi

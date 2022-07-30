@@ -11,7 +11,7 @@
 import re  # noqa: F401
 import sys  # noqa: F401
 
-from core.model_utils import (  # noqa: F401
+from httpmq.core.model_utils import (  # noqa: F401
     ApiTypeError,
     ModelComposed,
     ModelNormal,
@@ -26,12 +26,12 @@ from core.model_utils import (  # noqa: F401
     validate_get_composed_info,
     OpenApiModel,
 )
-from core.exceptions import ApiAttributeError
+from httpmq.core.exceptions import ApiAttributeError
 
 
 def lazy_import():
-    from core.model.dataplane_msg_to_deliver_seq import DataplaneMsgToDeliverSeq
-    from core.model.goutils_error_detail import GoutilsErrorDetail
+    from httpmq.core.model.dataplane_msg_to_deliver_seq import DataplaneMsgToDeliverSeq
+    from httpmq.core.model.goutils_error_detail import GoutilsErrorDetail
 
     globals()["DataplaneMsgToDeliverSeq"] = DataplaneMsgToDeliverSeq
     globals()["GoutilsErrorDetail"] = GoutilsErrorDetail

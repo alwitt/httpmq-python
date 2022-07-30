@@ -13,15 +13,15 @@
 __version__ = "1.0.0"
 
 # import ApiClient
-from core.api_client import ApiClient
+from httpmq.core.api_client import ApiClient
 
 # import Configuration
-from core.configuration import Configuration
+from httpmq.core.configuration import Configuration
 
 # import exceptions
-from core.exceptions import OpenApiException
-from core.exceptions import ApiAttributeError
-from core.exceptions import ApiTypeError
-from core.exceptions import ApiValueError
-from core.exceptions import ApiKeyError
-from core.exceptions import ApiException
+from httpmq.core.exceptions import OpenApiException
+from httpmq.core.exceptions import ApiAttributeError
+from httpmq.core.exceptions import ApiTypeError
+from httpmq.core.exceptions import ApiValueError
+from httpmq.core.exceptions import ApiKeyError
+from httpmq.core.exceptions import ApiException

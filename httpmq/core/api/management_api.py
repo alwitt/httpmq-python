@@ -11,8 +11,8 @@
 import re  # noqa: F401
 import sys  # noqa: F401
 
-from core.api_client import ApiClient, Endpoint as _Endpoint
-from core.model_utils import (  # noqa: F401
+from httpmq.core.api_client import ApiClient, Endpoint as _Endpoint
+from httpmq.core.model_utils import (  # noqa: F401
     check_allowed_values,
     check_validations,
     date,
@@ -21,19 +21,25 @@ from core.model_utils import (  # noqa: F401
     none_type,
     validate_and_convert_types,
 )
-from core.model.apis_api_rest_req_stream_subjects import ApisAPIRestReqStreamSubjects
-from core.model.apis_api_rest_resp_all_jet_stream_consumers import (
+from httpmq.core.model.apis_api_rest_req_stream_subjects import (
+    ApisAPIRestReqStreamSubjects,
+)
+from httpmq.core.model.apis_api_rest_resp_all_jet_stream_consumers import (
     ApisAPIRestRespAllJetStreamConsumers,
 )
-from core.model.apis_api_rest_resp_all_jet_streams import ApisAPIRestRespAllJetStreams
-from core.model.apis_api_rest_resp_one_jet_stream import ApisAPIRestRespOneJetStream
-from core.model.apis_api_rest_resp_one_jet_stream_consumer import (
+from httpmq.core.model.apis_api_rest_resp_all_jet_streams import (
+    ApisAPIRestRespAllJetStreams,
+)
+from httpmq.core.model.apis_api_rest_resp_one_jet_stream import (
+    ApisAPIRestRespOneJetStream,
+)
+from httpmq.core.model.apis_api_rest_resp_one_jet_stream_consumer import (
     ApisAPIRestRespOneJetStreamConsumer,
 )
-from core.model.goutils_rest_api_base_response import GoutilsRestAPIBaseResponse
-from core.model.management_js_stream_limits import ManagementJSStreamLimits
-from core.model.management_js_stream_param import ManagementJSStreamParam
-from core.model.management_jet_stream_consumer_param import (
+from httpmq.core.model.goutils_rest_api_base_response import GoutilsRestAPIBaseResponse
+from httpmq.core.model.management_js_stream_limits import ManagementJSStreamLimits
+from httpmq.core.model.management_js_stream_param import ManagementJSStreamParam
+from httpmq.core.model.management_jet_stream_consumer_param import (
     ManagementJetStreamConsumerParam,
 )
 

@@ -19,7 +19,7 @@ from urllib.request import proxy_bypass_environment
 import urllib3
 import ipaddress
 
-from core.exceptions import (
+from httpmq.core.exceptions import (
     ApiException,
     UnauthorizedException,
     ForbiddenException,

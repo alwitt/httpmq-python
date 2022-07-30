@@ -46,7 +46,8 @@ cli: .prep ## Run venv python CLI
 
 .PHONY: compose
 compose: ## Bring up development environment via docker-compose
-	docker-compose -f docker-compose.yml up -d
+	docker-compose -f docker-compose.yaml down --volume
+	docker-compose -f docker-compose.yaml up -d
 
 .PHONY: clean
 clean: ## Clean up the python build artifacts

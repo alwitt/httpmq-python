@@ -20,10 +20,10 @@ from urllib.parse import quote
 from urllib3.fields import RequestField
 
 
-from core import rest
-from core.configuration import Configuration
-from core.exceptions import ApiTypeError, ApiValueError, ApiException
-from core.model_utils import (
+from httpmq.core import rest
+from httpmq.core.configuration import Configuration
+from httpmq.core.exceptions import ApiTypeError, ApiValueError, ApiException
+from httpmq.core.model_utils import (
     ModelNormal,
     ModelSimple,
     ModelComposed,
@@ -709,9 +709,6 @@ class ApiClient(object):
         :param request_auths: if set, the provided settings will
             override the token in the configuration.
         """
-        if not auth_settings:
-            return
-
         if request_auths:
             for auth_setting in request_auths:
                 self._apply_auth_params(
@@ -719,12 +716,13 @@ class ApiClient(object):
                 )
             return
 
-        for auth in auth_settings:
-            auth_setting = self.configuration.auth_settings().get(auth)
-            if auth_setting:
-                self._apply_auth_params(
-                    headers, queries, resource_path, method, body, auth_setting
-                )
+        if auth_settings:
+            for auth in auth_settings:
+                auth_setting = self.configuration.auth_settings().get(auth)
+                if auth_setting:
+                    self._apply_auth_params(
+                        headers, queries, resource_path, method, body, auth_setting
+                    )
 
     def _apply_auth_params(
         self, headers, queries, resource_path, method, body, auth_setting
