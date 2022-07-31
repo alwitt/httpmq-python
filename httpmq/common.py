@@ -1,6 +1,9 @@
 """Support classes and functions"""
 
 
+import uuid
+
+
 class APICallContext:
     """
     API call context provides
@@ -16,6 +19,7 @@ class APICallContext:
         """Constructor"""
         self.auth_param = []
         self.request_timeout_sec = None
+        self.request_id = str(uuid.uuid4())
 
     def add_bearer_auth_token(self, token: str):
         """Record a bearer auth token for use in a request
@@ -37,6 +41,13 @@ class APICallContext:
         :param timeout_sec: the number of seconds before request timeout
         """
         self.request_timeout_sec = timeout_sec
+
+    def set_request_id(self, request_id: str):
+        """Set the request ID
+
+        :param id: the request ID to use for the request
+        """
+        self.request_id = request_id
 
 
 class HttpmqException(Exception):
@@ -66,3 +77,25 @@ class HttpmqAPIError(HttpmqException):
         if detail is not None:
             full_msg += f": {detail}"
         super().__init__(full_msg)
+
+    @staticmethod
+    def new_error(call_response):
+        """Generate a new error
+
+        :param call_response: the request response
+        :return: a new error object
+        """
+        return HttpmqAPIError(
+            request_id=call_response.request_id,
+            status_code=call_response.error.code,
+            message=(
+                call_response.error.message
+                if hasattr(call_response.error, "message")
+                else None
+            ),
+            detail=(
+                call_response.error.detail
+                if hasattr(call_response.error, "detail")
+                else None
+            ),
+        )
