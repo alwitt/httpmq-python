@@ -186,7 +186,28 @@ class TestManagementPlane(unittest.TestCase):
         consumer_2_rb = self.mgmt_client.get_consumer_of_stream(
             stream=stream_1, consumer=consumer_2, ctxt=APICallContext()
         )
-        self.assertEqual(consumer_2_rb.config.max_ack_pending, 2)
+        self.assertEqual(consumer_2_rb.config.max_ack_pending, 1)
+        self.assertEqual(consumer_2_rb.config.filter_subject, subjects_1[0])
+        all_consumers = self.mgmt_client.list_all_consumer_of_stream(
+            stream=stream_1, ctxt=APICallContext()
+        )
+        self.assertEqual(len(all_consumers), 2)
+        self.assertIn(consumer_6, all_consumers)
+        consumer_6_rb = all_consumers[consumer_6]
+        self.assertEqual(consumer_6_rb.config.max_ack_pending, 2)
+        self.assertEqual(consumer_6_rb.config.filter_subject, subject_6)
+
+        # Case 8: delete the consumer
+        self.mgmt_client.delete_consumer_on_stream(
+            stream=stream_1, consumer=consumer_2, ctxt=APICallContext()
+        )
+        self.mgmt_client.delete_consumer_on_stream(
+            stream=stream_1, consumer=consumer_6, ctxt=APICallContext()
+        )
+        all_consumers = self.mgmt_client.list_all_consumer_of_stream(
+            stream=stream_1, ctxt=APICallContext()
+        )
+        self.assertEqual(len(all_consumers), 0)
 
         # Delete the stream
         self.mgmt_client.delete_stream(stream=stream_1, ctxt=APICallContext())
