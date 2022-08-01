@@ -11,6 +11,9 @@ from httpmq.core.models import (
     ApisAPIRestRespOneJetStream,
     ApisAPIRestRespStreamInfo,
     ApisAPIRestReqStreamSubjects,
+    ManagementJetStreamConsumerParam,
+    ApisAPIRestRespConsumerInfo,
+    ApisAPIRestRespAllJetStreamConsumers,
 )
 from .common import APICallContext, HttpmqAPIError
 
@@ -155,6 +158,108 @@ class MgmtAPIWrapper:
         response: GoutilsRestAPIBaseResponse = (
             self.client.v1_admin_stream_stream_name_delete(
                 stream_name=stream,
+                httpmq_request_id=ctxt.request_id,
+                async_req=False,
+                _request_timeout=ctxt.request_timeout_sec,
+                _request_auths=ctxt.auth_param,
+            )
+        )
+        # Failed
+        if not response.success:
+            raise HttpmqAPIError.new_error(response)
+
+    #####################################################################################
+    # Consumer related API functions
+
+    def create_consumer_for_stream(
+        self,
+        stream: str,
+        params: ManagementJetStreamConsumerParam,
+        ctxt: APICallContext,
+    ):
+        """Define a new customer on a stream
+
+        :param stream: the stream to create the consumer on
+        :param params: the consumer parameters
+        :param ctxt: the caller context
+        """
+        response: GoutilsRestAPIBaseResponse = (
+            self.client.v1_admin_stream_stream_name_consumer_post(
+                stream_name=stream,
+                consumer_param=params,
+                httpmq_request_id=ctxt.request_id,
+                async_req=False,
+                _request_timeout=ctxt.request_timeout_sec,
+                _request_auths=ctxt.auth_param,
+            )
+        )
+        # Failed
+        if not response.success:
+            raise HttpmqAPIError.new_error(response)
+
+    def list_all_consumer_of_stream(
+        self,
+        stream: str,
+        ctxt: APICallContext,
+    ) -> Dict[str, ApisAPIRestRespConsumerInfo]:
+        """List of all known consumers on a stream
+
+        :param stream: the stream to query for
+        :param ctxt: the caller context
+        :return: list of known consumers of a stream
+        """
+        response: ApisAPIRestRespAllJetStreamConsumers = (
+            self.client.v1_admin_stream_stream_name_consumer_get(
+                stream_name=stream,
+                httpmq_request_id=ctxt.request_id,
+                async_req=False,
+                _request_timeout=ctxt.request_timeout_sec,
+                _request_auths=ctxt.auth_param,
+            )
+        )
+        # Failed
+        if not response.success:
+            raise HttpmqAPIError.new_error(response)
+        return response.consumers
+
+    def get_consumer_of_stream(
+        self, stream: str, consumer: str, ctxt: APICallContext
+    ) -> ApisAPIRestRespConsumerInfo:
+        """Query for a particular consumer on a stream
+
+        :param stream: name of the stream
+        :param consumer: name of the consumer
+        :param ctxt: the caller context
+        :return: information on a consumer
+        """
+        response: ApisAPIRestRespConsumerInfo = (
+            self.client.v1_admin_stream_stream_name_consumer_consumer_name_get(
+                stream_name=stream,
+                consumer_name=consumer,
+                httpmq_request_id=ctxt.request_id,
+                async_req=False,
+                _request_timeout=ctxt.request_timeout_sec,
+                _request_auths=ctxt.auth_param,
+            )
+        )
+        # Failed
+        if not response.success:
+            raise HttpmqAPIError.new_error(response)
+        return response.consumer
+
+    def delete_consumer_on_stream(
+        self, stream: str, consumer: str, ctxt: APICallContext
+    ):
+        """Delete a consumer on a stream
+
+        :param stream: name of the stream
+        :param consumer: name of the consumer
+        :param ctxt: the caller context
+        """
+        response: GoutilsRestAPIBaseResponse = (
+            self.client.v1_admin_stream_stream_name_consumer_consumer_name_delete(
+                stream_name=stream,
+                consumer_name=consumer,
                 httpmq_request_id=ctxt.request_id,
                 async_req=False,
                 _request_timeout=ctxt.request_timeout_sec,

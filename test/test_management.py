@@ -8,7 +8,11 @@ import urllib3
 from httpmq import CoreConfiguration, CoreApiClient
 import httpmq
 from httpmq.common import APICallContext
-from httpmq.core.models import ManagementJSStreamParam, ManagementJSStreamLimits
+from httpmq.core.models import (
+    ManagementJSStreamParam,
+    ManagementJSStreamLimits,
+    ManagementJetStreamConsumerParam,
+)
 from httpmq.management import MgmtAPIWrapper
 from . import get_unittest_httpmq_mgmt_api_url
 
@@ -94,3 +98,97 @@ class TestManagementPlane(unittest.TestCase):
         self.mgmt_client.delete_stream(stream=stream_0, ctxt=APICallContext())
         with self.assertRaises(httpmq.core.exceptions.ServiceException):
             self.mgmt_client.get_stream(stream=stream_0, ctxt=APICallContext())
+
+    def test_consumer_management(self):
+        """Verify consumer management"""
+
+        self.mgmt_client.ready(ctxt=APICallContext())
+
+        # Case 0: create consumer with unknown stream
+        consumer_param = ManagementJetStreamConsumerParam(
+            name=str(uuid.uuid4()),
+            mode="push",
+            max_inflight=2,
+            filter_subject=str(uuid.uuid4()),
+        )
+        with self.assertRaises(httpmq.core.exceptions.ServiceException):
+            self.mgmt_client.create_consumer_for_stream(
+                stream=str(uuid.uuid4()), params=consumer_param, ctxt=APICallContext()
+            )
+
+        # Case 1: create a stream
+        stream_1 = str(uuid.uuid4())
+        subject_base = str(uuid.uuid4())
+        subjects_1 = [f"{subject_base}.a", f"{subject_base}.b"]
+        stream_1_param = ManagementJSStreamParam(name=stream_1, subjects=subjects_1)
+        self.mgmt_client.create_stream(params=stream_1_param, ctxt=APICallContext())
+        stream_1_rb = self.mgmt_client.get_stream(
+            stream=stream_1, ctxt=APICallContext()
+        )
+        self.assertEqual(stream_1_rb.config.name, stream_1)
+        self.assertListEqual(stream_1_rb.config.subjects, subjects_1)
+
+        # Case 2: create consumer on stream
+        consumer_2 = str(uuid.uuid4())
+        consumer_param = ManagementJetStreamConsumerParam(
+            name=consumer_2,
+            mode="push",
+            max_inflight=1,
+            filter_subject=subjects_1[0],
+        )
+        self.mgmt_client.create_consumer_for_stream(
+            stream=stream_1, params=consumer_param, ctxt=APICallContext()
+        )
+
+        # Case 3: create same consumer again on stream
+        self.mgmt_client.create_consumer_for_stream(
+            stream=stream_1, params=consumer_param, ctxt=APICallContext()
+        )
+
+        # Case 4: create same consumer with different subject
+        consumer_param = ManagementJetStreamConsumerParam(
+            name=consumer_2,
+            mode="push",
+            max_inflight=1,
+            filter_subject=subjects_1[1],
+        )
+        with self.assertRaises(httpmq.core.exceptions.ServiceException):
+            self.mgmt_client.create_consumer_for_stream(
+                stream=stream_1, params=consumer_param, ctxt=APICallContext()
+            )
+
+        # Case 5: create consumer against unknown subject
+        consumer_param = ManagementJetStreamConsumerParam(
+            name=str(uuid.uuid4()),
+            mode="push",
+            max_inflight=1,
+            filter_subject=str(uuid.uuid4()),
+        )
+        with self.assertRaises(httpmq.core.exceptions.ServiceException):
+            self.mgmt_client.create_consumer_for_stream(
+                stream=stream_1, params=consumer_param, ctxt=APICallContext()
+            )
+
+        # Case 6: create consumer against wildcard subject
+        consumer_6 = str(uuid.uuid4())
+        subject_6 = f"{subject_base}.*"
+        consumer_param = ManagementJetStreamConsumerParam(
+            name=consumer_6,
+            mode="push",
+            max_inflight=2,
+            filter_subject=subject_6,
+        )
+        self.mgmt_client.create_consumer_for_stream(
+            stream=stream_1, params=consumer_param, ctxt=APICallContext()
+        )
+
+        # Case 7: read back consumer info
+        consumer_2_rb = self.mgmt_client.get_consumer_of_stream(
+            stream=stream_1, consumer=consumer_2, ctxt=APICallContext()
+        )
+        self.assertEqual(consumer_2_rb.config.max_ack_pending, 2)
+
+        # Delete the stream
+        self.mgmt_client.delete_stream(stream=stream_1, ctxt=APICallContext())
+        with self.assertRaises(httpmq.core.exceptions.ServiceException):
+            self.mgmt_client.get_stream(stream=stream_1, ctxt=APICallContext())
