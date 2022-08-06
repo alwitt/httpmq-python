@@ -1,6 +1,6 @@
 """Wrapper object for operating the httpmq management API"""
 
-from typing import Dict
+from typing import Dict, Tuple
 from httpmq.core import ApiClient
 from httpmq.core.api.management_api import ManagementApi
 from httpmq.core.models import (
@@ -13,6 +13,7 @@ from httpmq.core.models import (
     ApisAPIRestReqStreamSubjects,
     ManagementJetStreamConsumerParam,
     ApisAPIRestRespConsumerInfo,
+    ApisAPIRestRespOneJetStreamConsumer,
     ApisAPIRestRespAllJetStreamConsumers,
 )
 from .common import APICallContext, HttpmqAPIError
@@ -45,11 +46,14 @@ class MgmtAPIWrapper:
     #####################################################################################
     # Stream related API functions
 
-    def create_stream(self, params: ManagementJSStreamParam, ctxt: APICallContext):
+    def create_stream(
+        self, params: ManagementJSStreamParam, ctxt: APICallContext
+    ) -> str:
         """Define a new stream
 
         :param params: the new stream parameters
         :param ctxt: the caller context
+        :return: request ID in the response
         """
         response: GoutilsRestAPIBaseResponse = self.client.v1_admin_stream_post(
             setting=params,
@@ -61,14 +65,15 @@ class MgmtAPIWrapper:
         # Failed
         if not response.success:
             raise HttpmqAPIError.new_error(response)
+        return response.request_id
 
     def list_all_streams(
         self, ctxt: APICallContext
-    ) -> Dict[str, ApisAPIRestRespStreamInfo]:
+    ) -> Tuple[Dict[str, ApisAPIRestRespStreamInfo], str]:
         """Query for list of all known streams
 
         :param ctxt: the caller context
-        :return: list of known streams
+        :return: list of known streams, and request ID in the response
         """
         response: ApisAPIRestRespAllJetStreams = self.client.v1_admin_stream_get(
             httpmq_request_id=ctxt.request_id,
@@ -79,16 +84,16 @@ class MgmtAPIWrapper:
         # Failed
         if not response.success:
             raise HttpmqAPIError.new_error(response)
-        return response.streams
+        return response.streams, response.request_id
 
     def get_stream(
         self, stream: str, ctxt: APICallContext
-    ) -> ApisAPIRestRespStreamInfo:
+    ) -> Tuple[ApisAPIRestRespStreamInfo, str]:
         """Query for a particular stream
 
         :param stream: the stream to query for
         :param ctxt: the caller context
-        :return: information on the stream
+        :return: information on the stream, and request ID in the response
         """
         response: ApisAPIRestRespOneJetStream = (
             self.client.v1_admin_stream_stream_name_get(
@@ -102,15 +107,16 @@ class MgmtAPIWrapper:
         # Failed
         if not response.success:
             raise HttpmqAPIError.new_error(response)
-        return response.stream
+        return response.stream, response.request_id
 
     def change_stream_subjects(
         self, stream: str, new_subjects: list, ctxt: APICallContext
-    ):
+    ) -> str:
         """Change the target subjects of a stream
 
         :param stream: name of the stream
         :param ctxt: the caller context
+        :return: request ID in the response
         """
         response: GoutilsRestAPIBaseResponse = (
             self.client.v1_admin_stream_stream_name_subject_put(
@@ -125,15 +131,17 @@ class MgmtAPIWrapper:
         # Failed
         if not response.success:
             raise HttpmqAPIError.new_error(response)
+        return response.request_id
 
     def update_stream_limits(
         self, stream: str, limits: ManagementJSStreamLimits, ctxt: APICallContext
-    ):
+    ) -> str:
         """Update the data retention limits of a stream
 
         :param stream: name of the stream
         :param limits: new data retention limits
         :param ctxt: the caller context
+        :return: request ID in the response
         """
         response: GoutilsRestAPIBaseResponse = (
             self.client.v1_admin_stream_stream_name_limit_put(
@@ -148,12 +156,14 @@ class MgmtAPIWrapper:
         # Failed
         if not response.success:
             raise HttpmqAPIError.new_error(response)
+        return response.request_id
 
-    def delete_stream(self, stream: str, ctxt: APICallContext):
+    def delete_stream(self, stream: str, ctxt: APICallContext) -> str:
         """Delete a stream
 
         :param stream: name of the stream
         :param ctxt: the caller context
+        :return: request ID in the response
         """
         response: GoutilsRestAPIBaseResponse = (
             self.client.v1_admin_stream_stream_name_delete(
@@ -167,6 +177,7 @@ class MgmtAPIWrapper:
         # Failed
         if not response.success:
             raise HttpmqAPIError.new_error(response)
+        return response.request_id
 
     #####################################################################################
     # Consumer related API functions
@@ -176,12 +187,13 @@ class MgmtAPIWrapper:
         stream: str,
         params: ManagementJetStreamConsumerParam,
         ctxt: APICallContext,
-    ):
+    ) -> str:
         """Define a new customer on a stream
 
         :param stream: the stream to create the consumer on
         :param params: the consumer parameters
         :param ctxt: the caller context
+        :return: request ID in the response
         """
         response: GoutilsRestAPIBaseResponse = (
             self.client.v1_admin_stream_stream_name_consumer_post(
@@ -196,17 +208,18 @@ class MgmtAPIWrapper:
         # Failed
         if not response.success:
             raise HttpmqAPIError.new_error(response)
+        return response.request_id
 
     def list_all_consumer_of_stream(
         self,
         stream: str,
         ctxt: APICallContext,
-    ) -> Dict[str, ApisAPIRestRespConsumerInfo]:
+    ) -> Tuple[Dict[str, ApisAPIRestRespConsumerInfo], str]:
         """List of all known consumers on a stream
 
         :param stream: the stream to query for
         :param ctxt: the caller context
-        :return: list of known consumers of a stream
+        :return: list of known consumers of a stream, and request ID in the response
         """
         response: ApisAPIRestRespAllJetStreamConsumers = (
             self.client.v1_admin_stream_stream_name_consumer_get(
@@ -220,19 +233,19 @@ class MgmtAPIWrapper:
         # Failed
         if not response.success:
             raise HttpmqAPIError.new_error(response)
-        return response.consumers
+        return response.consumers, response.request_id
 
     def get_consumer_of_stream(
         self, stream: str, consumer: str, ctxt: APICallContext
-    ) -> ApisAPIRestRespConsumerInfo:
+    ) -> Tuple[ApisAPIRestRespConsumerInfo, str]:
         """Query for a particular consumer on a stream
 
         :param stream: name of the stream
         :param consumer: name of the consumer
         :param ctxt: the caller context
-        :return: information on a consumer
+        :return: information on a consumer, and request ID in the response
         """
-        response: ApisAPIRestRespConsumerInfo = (
+        response: ApisAPIRestRespOneJetStreamConsumer = (
             self.client.v1_admin_stream_stream_name_consumer_consumer_name_get(
                 stream_name=stream,
                 consumer_name=consumer,
@@ -245,7 +258,7 @@ class MgmtAPIWrapper:
         # Failed
         if not response.success:
             raise HttpmqAPIError.new_error(response)
-        return response.consumer
+        return response.consumer, response.request_id
 
     def delete_consumer_on_stream(
         self, stream: str, consumer: str, ctxt: APICallContext
@@ -255,6 +268,7 @@ class MgmtAPIWrapper:
         :param stream: name of the stream
         :param consumer: name of the consumer
         :param ctxt: the caller context
+        :return: request ID in the response
         """
         response: GoutilsRestAPIBaseResponse = (
             self.client.v1_admin_stream_stream_name_consumer_consumer_name_delete(
@@ -269,3 +283,4 @@ class MgmtAPIWrapper:
         # Failed
         if not response.success:
             raise HttpmqAPIError.new_error(response)
+        return response.request_id

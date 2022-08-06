@@ -1,5 +1,6 @@
 """Test bench for httpmq.management"""
 
+# pylint: disable=too-many-statements
 
 from datetime import timedelta
 import unittest
@@ -49,10 +50,18 @@ class TestManagementPlane(unittest.TestCase):
         stream_0 = str(uuid.uuid4())
         subjects_0 = [str(uuid.uuid4())]
         stream_0_param = ManagementJSStreamParam(name=stream_0, subjects=subjects_0)
-        self.mgmt_client.create_stream(params=stream_0_param, ctxt=APICallContext())
+        ctxt = APICallContext()
+        self.assertEqual(
+            self.mgmt_client.create_stream(params=stream_0_param, ctxt=ctxt),
+            ctxt.request_id,
+        )
 
         # Case 1: create the same stream again
-        self.mgmt_client.create_stream(params=stream_0_param, ctxt=APICallContext())
+        ctxt = APICallContext()
+        self.assertEqual(
+            self.mgmt_client.create_stream(params=stream_0_param, ctxt=ctxt),
+            ctxt.request_id,
+        )
 
         # Case 2: create another stream but with same subject
         stream_2_param = ManagementJSStreamParam(
@@ -62,12 +71,14 @@ class TestManagementPlane(unittest.TestCase):
             self.mgmt_client.create_stream(params=stream_2_param, ctxt=APICallContext())
 
         # Case 3: read back the stream info
-        stream_0_rb = self.mgmt_client.get_stream(
-            stream=stream_0, ctxt=APICallContext()
-        )
+        ctxt = APICallContext()
+        stream_0_rb, rid = self.mgmt_client.get_stream(stream=stream_0, ctxt=ctxt)
+        self.assertEqual(rid, ctxt.request_id)
         self.assertEqual(stream_0_rb.config.name, stream_0)
         self.assertListEqual(stream_0_rb.config.subjects, subjects_0)
-        all_streams = self.mgmt_client.list_all_streams(ctxt=APICallContext())
+        ctxt = APICallContext()
+        all_streams, rid = self.mgmt_client.list_all_streams(ctxt=ctxt)
+        self.assertEqual(rid, ctxt.request_id)
         self.assertIn(stream_0, all_streams)
         stream_rb = all_streams[stream_0]
         self.assertEqual(stream_rb.config.name, stream_0)
@@ -75,27 +86,38 @@ class TestManagementPlane(unittest.TestCase):
 
         # Case 4: alter subjects for stream
         subjects_4 = [str(uuid.uuid4()), str(uuid.uuid4())]
-        self.mgmt_client.change_stream_subjects(
-            stream=stream_0, new_subjects=subjects_4, ctxt=APICallContext()
+        ctxt = APICallContext()
+        self.assertEqual(
+            self.mgmt_client.change_stream_subjects(
+                stream=stream_0, new_subjects=subjects_4, ctxt=ctxt
+            ),
+            ctxt.request_id,
         )
-        stream_0_rb = self.mgmt_client.get_stream(
-            stream=stream_0, ctxt=APICallContext()
-        )
+        ctxt = APICallContext()
+        stream_0_rb, rid = self.mgmt_client.get_stream(stream=stream_0, ctxt=ctxt)
+        self.assertEqual(rid, ctxt.request_id)
         self.assertListEqual(stream_0_rb.config.subjects, subjects_4)
 
         # Case 5: alter stream data retention
         new_max_age = int(timedelta(hours=1).total_seconds() * 1e9)
         new_limits = ManagementJSStreamLimits(max_age=new_max_age)
-        self.mgmt_client.update_stream_limits(
-            stream=stream_0, limits=new_limits, ctxt=APICallContext()
+        ctxt = APICallContext()
+        self.assertEqual(
+            self.mgmt_client.update_stream_limits(
+                stream=stream_0, limits=new_limits, ctxt=ctxt
+            ),
+            ctxt.request_id,
         )
-        stream_0_rb = self.mgmt_client.get_stream(
-            stream=stream_0, ctxt=APICallContext()
-        )
+        ctxt = APICallContext()
+        stream_0_rb, rid = self.mgmt_client.get_stream(stream=stream_0, ctxt=ctxt)
+        self.assertEqual(rid, ctxt.request_id)
         self.assertEqual(stream_0_rb.config.max_age, new_max_age)
 
         # Case 6: delete the stream
-        self.mgmt_client.delete_stream(stream=stream_0, ctxt=APICallContext())
+        ctxt = APICallContext()
+        self.assertEqual(
+            self.mgmt_client.delete_stream(stream=stream_0, ctxt=ctxt), ctxt.request_id
+        )
         with self.assertRaises(httpmq.core.exceptions.ServiceException):
             self.mgmt_client.get_stream(stream=stream_0, ctxt=APICallContext())
 
@@ -121,10 +143,14 @@ class TestManagementPlane(unittest.TestCase):
         subject_base = str(uuid.uuid4())
         subjects_1 = [f"{subject_base}.a", f"{subject_base}.b"]
         stream_1_param = ManagementJSStreamParam(name=stream_1, subjects=subjects_1)
-        self.mgmt_client.create_stream(params=stream_1_param, ctxt=APICallContext())
-        stream_1_rb = self.mgmt_client.get_stream(
-            stream=stream_1, ctxt=APICallContext()
+        ctxt = APICallContext()
+        self.assertEqual(
+            self.mgmt_client.create_stream(params=stream_1_param, ctxt=ctxt),
+            ctxt.request_id,
         )
+        ctxt = APICallContext()
+        stream_1_rb, rid = self.mgmt_client.get_stream(stream=stream_1, ctxt=ctxt)
+        self.assertEqual(rid, ctxt.request_id)
         self.assertEqual(stream_1_rb.config.name, stream_1)
         self.assertListEqual(stream_1_rb.config.subjects, subjects_1)
 
@@ -136,13 +162,21 @@ class TestManagementPlane(unittest.TestCase):
             max_inflight=1,
             filter_subject=subjects_1[0],
         )
-        self.mgmt_client.create_consumer_for_stream(
-            stream=stream_1, params=consumer_param, ctxt=APICallContext()
+        ctxt = APICallContext()
+        self.assertEqual(
+            self.mgmt_client.create_consumer_for_stream(
+                stream=stream_1, params=consumer_param, ctxt=ctxt
+            ),
+            ctxt.request_id,
         )
 
         # Case 3: create same consumer again on stream
-        self.mgmt_client.create_consumer_for_stream(
-            stream=stream_1, params=consumer_param, ctxt=APICallContext()
+        ctxt = APICallContext()
+        self.assertEqual(
+            self.mgmt_client.create_consumer_for_stream(
+                stream=stream_1, params=consumer_param, ctxt=ctxt
+            ),
+            ctxt.request_id,
         )
 
         # Case 4: create same consumer with different subject
@@ -178,19 +212,27 @@ class TestManagementPlane(unittest.TestCase):
             max_inflight=2,
             filter_subject=subject_6,
         )
-        self.mgmt_client.create_consumer_for_stream(
-            stream=stream_1, params=consumer_param, ctxt=APICallContext()
+        ctxt = APICallContext()
+        self.assertEqual(
+            self.mgmt_client.create_consumer_for_stream(
+                stream=stream_1, params=consumer_param, ctxt=ctxt
+            ),
+            ctxt.request_id,
         )
 
         # Case 7: read back consumer info
-        consumer_2_rb = self.mgmt_client.get_consumer_of_stream(
-            stream=stream_1, consumer=consumer_2, ctxt=APICallContext()
+        ctxt = APICallContext()
+        consumer_2_rb, rid = self.mgmt_client.get_consumer_of_stream(
+            stream=stream_1, consumer=consumer_2, ctxt=ctxt
         )
+        self.assertEqual(rid, ctxt.request_id)
         self.assertEqual(consumer_2_rb.config.max_ack_pending, 1)
         self.assertEqual(consumer_2_rb.config.filter_subject, subjects_1[0])
-        all_consumers = self.mgmt_client.list_all_consumer_of_stream(
-            stream=stream_1, ctxt=APICallContext()
+        ctxt = APICallContext()
+        all_consumers, rid = self.mgmt_client.list_all_consumer_of_stream(
+            stream=stream_1, ctxt=ctxt
         )
+        self.assertEqual(rid, ctxt.request_id)
         self.assertEqual(len(all_consumers), 2)
         self.assertIn(consumer_6, all_consumers)
         consumer_6_rb = all_consumers[consumer_6]
@@ -198,18 +240,31 @@ class TestManagementPlane(unittest.TestCase):
         self.assertEqual(consumer_6_rb.config.filter_subject, subject_6)
 
         # Case 8: delete the consumer
-        self.mgmt_client.delete_consumer_on_stream(
-            stream=stream_1, consumer=consumer_2, ctxt=APICallContext()
+        ctxt = APICallContext()
+        self.assertEqual(
+            self.mgmt_client.delete_consumer_on_stream(
+                stream=stream_1, consumer=consumer_2, ctxt=ctxt
+            ),
+            ctxt.request_id,
         )
-        self.mgmt_client.delete_consumer_on_stream(
-            stream=stream_1, consumer=consumer_6, ctxt=APICallContext()
+        ctxt = APICallContext()
+        self.assertEqual(
+            self.mgmt_client.delete_consumer_on_stream(
+                stream=stream_1, consumer=consumer_6, ctxt=ctxt
+            ),
+            ctxt.request_id,
         )
-        all_consumers = self.mgmt_client.list_all_consumer_of_stream(
-            stream=stream_1, ctxt=APICallContext()
+        ctxt = APICallContext()
+        all_consumers, rid = self.mgmt_client.list_all_consumer_of_stream(
+            stream=stream_1, ctxt=ctxt
         )
+        self.assertEqual(rid, ctxt.request_id)
         self.assertEqual(len(all_consumers), 0)
 
         # Delete the stream
-        self.mgmt_client.delete_stream(stream=stream_1, ctxt=APICallContext())
+        ctxt = APICallContext()
+        self.assertEqual(
+            self.mgmt_client.delete_stream(stream=stream_1, ctxt=ctxt), ctxt.request_id
+        )
         with self.assertRaises(httpmq.core.exceptions.ServiceException):
             self.mgmt_client.get_stream(stream=stream_1, ctxt=APICallContext())
