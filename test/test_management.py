@@ -19,7 +19,7 @@ from . import get_unittest_httpmq_mgmt_api_url
 
 
 class TestManagementPlane(unittest.TestCase):
-    """Testbench for httpmq.management"""
+    """Test bench for httpmq.management"""
 
     def setUp(self):
         """Prepare for unittest"""
