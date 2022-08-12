@@ -11,8 +11,10 @@ setup(
     include_package_data=True,
     zip_safe=True,
     install_requires=[
+        "aiohttp",
+        "aiostream",
+        "asyncio",
         "python-dateutil",
-        "urllib3; extra == 'secure,brotli'",
     ],
     setup_requires=["black", "flake8", "pylint", "setuptools", "wheel"],
     tests_require=["pytest"],

@@ -2,11 +2,15 @@
 
 
 import uuid
+import aiohttp
+from multidict import CIMultiDict, CIMultiDictProxy
+
+from httpmq import DEFAULT_REQUEST_ID_FIELD
 
 
-class APICallContext:
+class RequestContext:
     """
-    API call context provides
+    API request context provides
       * Call authorization header param
       * Additional HTTP headers
       * Metadata associated with a call
@@ -15,32 +19,66 @@ class APICallContext:
     :param request_timeout_sec: If set, the number of seconds (as float) before timeout
     """
 
-    def __init__(self):
-        """Constructor"""
-        self.auth_param = []
-        self.request_timeout_sec = None
+    def __init__(self, request_id_field: str = DEFAULT_REQUEST_ID_FIELD):
+        """Constructor
+
+        :param request_id_field: the HTTP field to send a request as
+        """
+        self.auth_param = {"header": [], "param": []}
+        self.additional_headers = CIMultiDict()
+        self.additional_params = {}
+        self.request_timeout = None
+        self.request_id_field = request_id_field
         self.request_id = str(uuid.uuid4())
 
-    def add_bearer_auth_token(self, token: str):
-        """Record a bearer auth token for use in a request
+    def get_headers(self) -> CIMultiDictProxy:
+        """Fetch the headers unique to this request
 
-        :param token: the bearer authentication token
+        :return: the additional headers
         """
-        self.auth_param.append(
-            {
-                "in": "header",
-                "type": "bearer",
-                "key": "Authorization",
-                "value": f"Bearer {token}",
-            }
-        )
+        all_headers = CIMultiDict()
+        # Add the additional headers
+        all_headers.extend(CIMultiDictProxy(self.additional_headers))
+        # Add the request ID
+        all_headers.add(self.request_id_field, self.request_id)
+        # Add the authorization header
+        for one_auth_entry in self.auth_param["header"]:
+            all_headers.add("Authorization", one_auth_entry)
+        return all_headers
 
-    def set_request_timeout(self, timeout_sec: float):
+    def add_header_auth_token(self, token_with_type: str):
+        """Record a header auth token for use in a request
+
+        :param token_with_type: the authentication token with type (i.e. Bearer ########)
+        """
+        self.auth_param["header"].append(token_with_type)
+        return self
+
+    def add_header(self, header_name: str, header_value: str):
+        """Add header to request
+
+        :param header_name: HTTP header name
+        :param header_value: HTTP header value
+        """
+        self.additional_headers.add(header_name, header_value)
+        return self
+
+    def add_param(self, param_name: str, param_value: str):
+        """Add URL parameter to request
+
+        :param param_name: URL parameter name
+        :param param_value: parameter value
+        """
+        self.additional_params[param_name] = param_value
+        return self
+
+    def set_request_timeout(self, timeout: aiohttp.ClientTimeout):
         """Set the request timeout
 
-        :param timeout_sec: the number of seconds before request timeout
+        :param timeout: request timeout
         """
-        self.request_timeout_sec = timeout_sec
+        self.request_timeout = timeout
+        return self
 
     def set_request_id(self, request_id: str):
         """Set the request ID
@@ -48,6 +86,7 @@ class APICallContext:
         :param id: the request ID to use for the request
         """
         self.request_id = request_id
+        return self
 
 
 class HttpmqException(Exception):

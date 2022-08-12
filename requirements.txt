@@ -1,3 +1,6 @@
+aiohttp
+aiostream
+asyncio
 black
 click
 flake8
@@ -5,5 +8,4 @@ pylint
 pytest
 python-dateutil
 setuptools
-urllib3[secure,brotli]
 wheel

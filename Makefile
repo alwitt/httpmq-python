@@ -14,7 +14,7 @@ venv/bin/activate: requirements.txt
 .PHONY: lint
 lint: .prep ## Run python lint
 	. venv/bin/activate; python3 -m black httpmq test
-	. venv/bin/activate; pylint httpmq test --min-similarity-lines=30 --ignore-paths=httpmq/core
+	. venv/bin/activate; pylint httpmq test --min-similarity-lines=30 --ignore-paths=httpmq/models,httpmq/typing_utils.py,httpmq/util.py
 
 .PHONY: build
 build: lint ## Build module
@@ -22,7 +22,7 @@ build: lint ## Build module
 
 .PHONY: test
 test: ## Run unit-tests
-	. venv/bin/activate; pytest --verbose --junitxml=test-reports/test.xml
+	. venv/bin/activate; pytest --verbose --junitxml=test-reports/test.xml test/
 
 .PHONY: one-test
 one-test: ## Run specific unit-tests
