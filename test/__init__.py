@@ -43,5 +43,5 @@ class BaseTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """To be called for all test cases"""
-        cls.loop = asyncio.get_event_loop()
+        cls.loop = asyncio.new_event_loop()
         httpmq.configure_sdk_logging(global_log_level=logging.DEBUG)

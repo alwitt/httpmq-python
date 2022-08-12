@@ -56,35 +56,15 @@ class APIClient:
         """
         trace_config_ctx.start_time = asyncio.get_event_loop().time()
         msgs = []
+        msgs.append(f"[{trace_config_ctx.trace_request_ctx.request_id}] Request ==>")
         msgs.append(
-            "[%s] > %s %s HTTP/%d.%d"
-            % (
-                trace_config_ctx.trace_request_ctx.request_id,
-                params.method,
-                params.url.path,
-                session.version[0],
-                session.version[1],
-            )
+            f"> {params.method} {params.url.path} HTTP/{session.version[0]}.{session.version[1]}"
         )
-        msgs.append(
-            "[%s] > Host: %s"
-            % (
-                trace_config_ctx.trace_request_ctx.request_id,
-                params.url.host,
-            )
-        )
+        msgs.append(f"> Host: {params.url.host}")
         # Log the headers
         for header_name, header_value in params.headers.items():
-            msgs.append(
-                "[%s] > %s: %s"
-                % (
-                    trace_config_ctx.trace_request_ctx.request_id,
-                    header_name,
-                    header_value,
-                )
-            )
-        for msg in msgs:
-            LOG.debug(msg)
+            msgs.append(f"> {header_name}: {header_value}")
+        LOG.debug("\n".join(msgs))
 
     @staticmethod
     async def on_request_end(
@@ -101,10 +81,10 @@ class APIClient:
         end_time = asyncio.get_event_loop().time()
         duration = end_time - trace_config_ctx.start_time
         msgs = []
+        msgs.append(f"[{trace_config_ctx.trace_request_ctx.request_id}] Response <==")
         msgs.append(
-            "[%s] < HTTP/%d.%d %d %s"
+            "< HTTP/%d.%d %d %s"
             % (
-                trace_config_ctx.trace_request_ctx.request_id,
                 session.version[0],
                 session.version[1],
                 params.response.status,
@@ -113,21 +93,10 @@ class APIClient:
         )
         # Log the headers
         for header_name, header_value in params.response.headers.items():
-            msgs.append(
-                "[%s] < %s: %s"
-                % (
-                    trace_config_ctx.trace_request_ctx.request_id,
-                    header_name,
-                    header_value,
-                )
-            )
+            msgs.append(f"< {header_name}: {header_value}")
         # Log the duration
-        msgs.append(
-            "[%s] Request Duration == %0.3f ms"
-            % (trace_config_ctx.trace_request_ctx.request_id, duration * 1000)
-        )
-        for msg in msgs:
-            LOG.debug(msg)
+        msgs.append(f"Request Duration == {duration*1e3:.3} ms")
+        LOG.debug("\n".join(msgs))
 
     @staticmethod
     async def on_request_exception(
@@ -162,12 +131,8 @@ class APIClient:
             )
         )
         # Log the duration
-        msgs.append(
-            "[%s] Request Duration == %0.3f ms"
-            % (trace_config_ctx.trace_request_ctx.request_id, duration * 1000)
-        )
-        for msg in msgs:
-            LOG.debug(msg)
+        msgs.append(f"Request Duration == {duration*1e3:.3} ms")
+        LOG.debug("\n".join(msgs))
 
     def __init__(
         self,
