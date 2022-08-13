@@ -177,7 +177,6 @@ class APIClient:
 
         :param path: GET target path
         :param ctxt: request context
-        :param params: URL parameters
         :return: response
         """
         # Define the complete header map
@@ -196,6 +195,35 @@ class APIClient:
                 else self.base_timeout
             ),
             trace_request_ctx=ctxt,
+        ) as resp:
+            # Convert the response object to a wrapper object
+            return APIClient.Response(resp, await resp.read())
+
+    async def post(self, path: str, ctxt: RequestContext, body: bytes) -> Response:
+        """HTTP POST wrapper
+
+        :param path: POST target path
+        :param ctxt: request context
+        :param body: POST body
+        :return: response
+        """
+        # Define the complete header map
+        final_headers = CIMultiDict()
+        if self.base_headers is not None:
+            final_headers.extend(CIMultiDictProxy(self.base_headers))
+        final_headers.extend(ctxt.get_headers())
+        # Make the request
+        async with self.session.post(
+            url=path,
+            params=ctxt.additional_params,
+            headers=final_headers,
+            timeout=(
+                ctxt.request_timeout
+                if ctxt.request_timeout is not None
+                else self.base_timeout
+            ),
+            trace_request_ctx=ctxt,
+            data=body,
         ) as resp:
             # Convert the response object to a wrapper object
             return APIClient.Response(resp, await resp.read())
