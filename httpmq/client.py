@@ -199,7 +199,9 @@ class APIClient:
             # Convert the response object to a wrapper object
             return APIClient.Response(resp, await resp.read())
 
-    async def post(self, path: str, ctxt: RequestContext, body: bytes) -> Response:
+    async def post(
+        self, path: str, ctxt: RequestContext, body: bytes = None
+    ) -> Response:
         """HTTP POST wrapper
 
         :param path: POST target path
@@ -228,7 +230,9 @@ class APIClient:
             # Convert the response object to a wrapper object
             return APIClient.Response(resp, await resp.read())
 
-    async def put(self, path: str, ctxt: RequestContext, body: bytes) -> Response:
+    async def put(
+        self, path: str, ctxt: RequestContext, body: bytes = None
+    ) -> Response:
         """HTTP PUT wrapper
 
         :param path: PUT target path
@@ -253,6 +257,33 @@ class APIClient:
             ),
             trace_request_ctx=ctxt,
             data=body,
+        ) as resp:
+            # Convert the response object to a wrapper object
+            return APIClient.Response(resp, await resp.read())
+
+    async def delete(self, path: str, ctxt: RequestContext) -> Response:
+        """HTTP DELETE wrapper
+
+        :param path: DELETE target path
+        :param ctxt: request context
+        :return: response
+        """
+        # Define the complete header map
+        final_headers = CIMultiDict()
+        if self.base_headers is not None:
+            final_headers.extend(CIMultiDictProxy(self.base_headers))
+        final_headers.extend(ctxt.get_headers())
+        # Make the request
+        async with self.session.delete(
+            url=path,
+            params=ctxt.additional_params,
+            headers=final_headers,
+            timeout=(
+                ctxt.request_timeout
+                if ctxt.request_timeout is not None
+                else self.base_timeout
+            ),
+            trace_request_ctx=ctxt,
         ) as resp:
             # Convert the response object to a wrapper object
             return APIClient.Response(resp, await resp.read())

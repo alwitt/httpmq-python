@@ -29,19 +29,24 @@ class DummyServer:
 
     async def echo_handler(self, request: web.Request):
         """Echo back the parameters, headers, and payload received"""
+        request_body = await request.read()
         all_queries = request.query
         all_headers = request.headers
         # combine the header and query parameters together
         response_header = CIMultiDict()
         response_header.extend(all_queries)
         response_header.extend(all_headers)
+        if "Content-Length" in response_header:
+            response_header.popall("Content-Length")
+        if "Content-Type" in response_header:
+            response_header.popall("Content-Type")
         return web.Response(
             status=self.expected_status,
             headers=response_header,
             body=(
                 self.expected_result
                 if not self.echo_request_body_in_response
-                else await request.read()
+                else request_body
             ),
         )
 
@@ -123,7 +128,7 @@ class TestAPIClient(AioHTTPTestCase):
 
         test_server = self.server
 
-        # Check GET on the ready end-point of httpmq management APIs
+        # Check POST on the ready end-point of httpmq management APIs
         base_url = f"http://{test_server.host}:{test_server.port}"
 
         uut = APIClient(base_url=base_url)
@@ -138,7 +143,7 @@ class TestAPIClient(AioHTTPTestCase):
             .add_header("hello", header_2)
             .add_param("checking", param_1)
         )
-        response = await uut.post(path="/test", ctxt=context, body=None)
+        response = await uut.post(path="/test", ctxt=context)
         self.assertEqual(200, response.status)
         self.assertEqual(set(response.headers.getall("checking")), {param_1})
         self.assertEqual(set(response.headers.getall("hello")), {header_1, header_2})
@@ -173,7 +178,7 @@ class TestAPIClient(AioHTTPTestCase):
 
         test_server = self.server
 
-        # Check GET on the ready end-point of httpmq management APIs
+        # Check PUT on the ready end-point of httpmq management APIs
         base_url = f"http://{test_server.host}:{test_server.port}"
 
         uut = APIClient(base_url=base_url)
@@ -188,7 +193,7 @@ class TestAPIClient(AioHTTPTestCase):
             .add_header("hello", header_2)
             .add_param("checking", param_1)
         )
-        response = await uut.put(path="/test", ctxt=context, body=None)
+        response = await uut.put(path="/test", ctxt=context)
         self.assertEqual(200, response.status)
         self.assertEqual(set(response.headers.getall("checking")), {param_1})
         self.assertEqual(set(response.headers.getall("hello")), {header_1, header_2})
@@ -217,3 +222,52 @@ class TestAPIClient(AioHTTPTestCase):
             set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
             {context.request_id},
         )
+
+    async def test_delete(self):
+        """Verify APIClient.delete"""
+
+        test_server = self.server
+
+        # Check DELETE on the ready end-point of httpmq management APIs
+        base_url = f"http://{test_server.host}:{test_server.port}"
+
+        uut = APIClient(base_url=base_url)
+
+        # Case 0: test basic operation
+        context = (
+            RequestContext()
+            .add_header("hello", "world")
+            .add_header("hello", "again")
+            .add_param("checking", "1")
+        )
+        response = await uut.delete(path="/test", ctxt=context)
+        self.assertEqual(200, response.status)
+        self.assertEqual(set(response.headers.getall("checking")), {"1"})
+        self.assertEqual(set(response.headers.getall("hello")), {"world", "again"})
+        self.assertEqual(
+            set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
+            {context.request_id},
+        )
+
+        # Case 1: test error code
+        self.test_handler.expected_status = 500
+        context = RequestContext()
+        response = await uut.delete(path="/test", ctxt=context)
+        self.assertEqual(500, response.status)
+        self.assertEqual(
+            set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
+            {context.request_id},
+        )
+
+        # Case 2: test response payload
+        self.test_handler.expected_status = 200
+        test_msg = str(uuid.uuid4()).encode("utf-8")
+        self.test_handler.expected_result = test_msg
+        context = RequestContext()
+        response = await uut.post(path="/test", ctxt=context)
+        self.assertEqual(200, response.status)
+        self.assertEqual(
+            set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
+            {context.request_id},
+        )
+        self.assertEqual(response.content, test_msg)
