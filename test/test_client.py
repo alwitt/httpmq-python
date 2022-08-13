@@ -167,3 +167,53 @@ class TestAPIClient(AioHTTPTestCase):
             set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
             {context.request_id},
         )
+
+    async def test_put(self):
+        """Verify APIClient.put"""
+
+        test_server = self.server
+
+        # Check GET on the ready end-point of httpmq management APIs
+        base_url = f"http://{test_server.host}:{test_server.port}"
+
+        uut = APIClient(base_url=base_url)
+
+        # Case 0: test basic operation
+        param_1 = str(uuid.uuid4())
+        header_1 = str(uuid.uuid4())
+        header_2 = str(uuid.uuid4())
+        context = (
+            RequestContext()
+            .add_header("hello", header_1)
+            .add_header("hello", header_2)
+            .add_param("checking", param_1)
+        )
+        response = await uut.put(path="/test", ctxt=context, body=None)
+        self.assertEqual(200, response.status)
+        self.assertEqual(set(response.headers.getall("checking")), {param_1})
+        self.assertEqual(set(response.headers.getall("hello")), {header_1, header_2})
+        self.assertEqual(
+            set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
+            {context.request_id},
+        )
+
+        # Case 1: test request payload
+        self.test_handler.echo_request_body_in_response = True
+        test_msg = str(uuid.uuid4()).encode("utf-8")
+        context = RequestContext()
+        response = await uut.put(path="/test", ctxt=context, body=test_msg)
+        self.assertEqual(
+            set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
+            {context.request_id},
+        )
+        self.assertEqual(response.content, test_msg)
+
+        # Case 2: test error code
+        self.test_handler.expected_status = 400
+        context = RequestContext()
+        response = await uut.put(path="/test", ctxt=context, body=test_msg)
+        self.assertEqual(400, response.status)
+        self.assertEqual(
+            set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
+            {context.request_id},
+        )

@@ -227,3 +227,32 @@ class APIClient:
         ) as resp:
             # Convert the response object to a wrapper object
             return APIClient.Response(resp, await resp.read())
+
+    async def put(self, path: str, ctxt: RequestContext, body: bytes) -> Response:
+        """HTTP PUT wrapper
+
+        :param path: PUT target path
+        :param ctxt: request context
+        :param body: PUT body
+        :return: response
+        """
+        # Define the complete header map
+        final_headers = CIMultiDict()
+        if self.base_headers is not None:
+            final_headers.extend(CIMultiDictProxy(self.base_headers))
+        final_headers.extend(ctxt.get_headers())
+        # Make the request
+        async with self.session.put(
+            url=path,
+            params=ctxt.additional_params,
+            headers=final_headers,
+            timeout=(
+                ctxt.request_timeout
+                if ctxt.request_timeout is not None
+                else self.base_timeout
+            ),
+            trace_request_ctx=ctxt,
+            data=body,
+        ) as resp:
+            # Convert the response object to a wrapper object
+            return APIClient.Response(resp, await resp.read())
