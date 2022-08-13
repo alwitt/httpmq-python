@@ -172,40 +172,40 @@ class APIClient:
         )
         LOG.debug("Defined aiohttp client connecting to '%s'", base_url)
 
-    async def get(self, path: str, ctxt: RequestContext) -> Response:
+    async def get(self, path: str, context: RequestContext) -> Response:
         """HTTP GET wrapper
 
         :param path: GET target path
-        :param ctxt: request context
+        :param context: request context
         :return: response
         """
         # Define the complete header map
         final_headers = CIMultiDict()
         if self.base_headers is not None:
             final_headers.extend(CIMultiDictProxy(self.base_headers))
-        final_headers.extend(ctxt.get_headers())
+        final_headers.extend(context.get_headers())
         # Make the request
         async with self.session.get(
             url=path,
-            params=ctxt.additional_params,
+            params=context.additional_params,
             headers=final_headers,
             timeout=(
-                ctxt.request_timeout
-                if ctxt.request_timeout is not None
+                context.request_timeout
+                if context.request_timeout is not None
                 else self.base_timeout
             ),
-            trace_request_ctx=ctxt,
+            trace_request_ctx=context,
         ) as resp:
             # Convert the response object to a wrapper object
             return APIClient.Response(resp, await resp.read())
 
     async def post(
-        self, path: str, ctxt: RequestContext, body: bytes = None
+        self, path: str, context: RequestContext, body: bytes = None
     ) -> Response:
         """HTTP POST wrapper
 
         :param path: POST target path
-        :param ctxt: request context
+        :param context: request context
         :param body: POST body
         :return: response
         """
@@ -213,30 +213,30 @@ class APIClient:
         final_headers = CIMultiDict()
         if self.base_headers is not None:
             final_headers.extend(CIMultiDictProxy(self.base_headers))
-        final_headers.extend(ctxt.get_headers())
+        final_headers.extend(context.get_headers())
         # Make the request
         async with self.session.post(
             url=path,
-            params=ctxt.additional_params,
+            params=context.additional_params,
             headers=final_headers,
             timeout=(
-                ctxt.request_timeout
-                if ctxt.request_timeout is not None
+                context.request_timeout
+                if context.request_timeout is not None
                 else self.base_timeout
             ),
-            trace_request_ctx=ctxt,
+            trace_request_ctx=context,
             data=body,
         ) as resp:
             # Convert the response object to a wrapper object
             return APIClient.Response(resp, await resp.read())
 
     async def put(
-        self, path: str, ctxt: RequestContext, body: bytes = None
+        self, path: str, context: RequestContext, body: bytes = None
     ) -> Response:
         """HTTP PUT wrapper
 
         :param path: PUT target path
-        :param ctxt: request context
+        :param context: request context
         :param body: PUT body
         :return: response
         """
@@ -244,46 +244,46 @@ class APIClient:
         final_headers = CIMultiDict()
         if self.base_headers is not None:
             final_headers.extend(CIMultiDictProxy(self.base_headers))
-        final_headers.extend(ctxt.get_headers())
+        final_headers.extend(context.get_headers())
         # Make the request
         async with self.session.put(
             url=path,
-            params=ctxt.additional_params,
+            params=context.additional_params,
             headers=final_headers,
             timeout=(
-                ctxt.request_timeout
-                if ctxt.request_timeout is not None
+                context.request_timeout
+                if context.request_timeout is not None
                 else self.base_timeout
             ),
-            trace_request_ctx=ctxt,
+            trace_request_ctx=context,
             data=body,
         ) as resp:
             # Convert the response object to a wrapper object
             return APIClient.Response(resp, await resp.read())
 
-    async def delete(self, path: str, ctxt: RequestContext) -> Response:
+    async def delete(self, path: str, context: RequestContext) -> Response:
         """HTTP DELETE wrapper
 
         :param path: DELETE target path
-        :param ctxt: request context
+        :param context: request context
         :return: response
         """
         # Define the complete header map
         final_headers = CIMultiDict()
         if self.base_headers is not None:
             final_headers.extend(CIMultiDictProxy(self.base_headers))
-        final_headers.extend(ctxt.get_headers())
+        final_headers.extend(context.get_headers())
         # Make the request
         async with self.session.delete(
             url=path,
-            params=ctxt.additional_params,
+            params=context.additional_params,
             headers=final_headers,
             timeout=(
-                ctxt.request_timeout
-                if ctxt.request_timeout is not None
+                context.request_timeout
+                if context.request_timeout is not None
                 else self.base_timeout
             ),
-            trace_request_ctx=ctxt,
+            trace_request_ctx=context,
         ) as resp:
             # Convert the response object to a wrapper object
             return APIClient.Response(resp, await resp.read())

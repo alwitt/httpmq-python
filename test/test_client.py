@@ -91,7 +91,7 @@ class TestAPIClient(AioHTTPTestCase):
             .add_header("hello", "again")
             .add_param("checking", "1")
         )
-        response = await uut.get(path="/test", ctxt=context)
+        response = await uut.get(path="/test", context=context)
         self.assertEqual(200, response.status)
         self.assertEqual(set(response.headers.getall("checking")), {"1"})
         self.assertEqual(set(response.headers.getall("hello")), {"world", "again"})
@@ -103,7 +103,7 @@ class TestAPIClient(AioHTTPTestCase):
         # Case 1: test error code
         self.test_handler.expected_status = 500
         context = RequestContext()
-        response = await uut.get(path="/test", ctxt=context)
+        response = await uut.get(path="/test", context=context)
         self.assertEqual(500, response.status)
         self.assertEqual(
             set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
@@ -115,7 +115,7 @@ class TestAPIClient(AioHTTPTestCase):
         test_msg = str(uuid.uuid4()).encode("utf-8")
         self.test_handler.expected_result = test_msg
         context = RequestContext()
-        response = await uut.get(path="/test", ctxt=context)
+        response = await uut.get(path="/test", context=context)
         self.assertEqual(200, response.status)
         self.assertEqual(
             set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
@@ -143,7 +143,7 @@ class TestAPIClient(AioHTTPTestCase):
             .add_header("hello", header_2)
             .add_param("checking", param_1)
         )
-        response = await uut.post(path="/test", ctxt=context)
+        response = await uut.post(path="/test", context=context)
         self.assertEqual(200, response.status)
         self.assertEqual(set(response.headers.getall("checking")), {param_1})
         self.assertEqual(set(response.headers.getall("hello")), {header_1, header_2})
@@ -156,7 +156,7 @@ class TestAPIClient(AioHTTPTestCase):
         self.test_handler.echo_request_body_in_response = True
         test_msg = str(uuid.uuid4()).encode("utf-8")
         context = RequestContext()
-        response = await uut.post(path="/test", ctxt=context, body=test_msg)
+        response = await uut.post(path="/test", context=context, body=test_msg)
         self.assertEqual(
             set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
             {context.request_id},
@@ -166,7 +166,7 @@ class TestAPIClient(AioHTTPTestCase):
         # Case 2: test error code
         self.test_handler.expected_status = 400
         context = RequestContext()
-        response = await uut.post(path="/test", ctxt=context, body=test_msg)
+        response = await uut.post(path="/test", context=context, body=test_msg)
         self.assertEqual(400, response.status)
         self.assertEqual(
             set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
@@ -193,7 +193,7 @@ class TestAPIClient(AioHTTPTestCase):
             .add_header("hello", header_2)
             .add_param("checking", param_1)
         )
-        response = await uut.put(path="/test", ctxt=context)
+        response = await uut.put(path="/test", context=context)
         self.assertEqual(200, response.status)
         self.assertEqual(set(response.headers.getall("checking")), {param_1})
         self.assertEqual(set(response.headers.getall("hello")), {header_1, header_2})
@@ -206,7 +206,7 @@ class TestAPIClient(AioHTTPTestCase):
         self.test_handler.echo_request_body_in_response = True
         test_msg = str(uuid.uuid4()).encode("utf-8")
         context = RequestContext()
-        response = await uut.put(path="/test", ctxt=context, body=test_msg)
+        response = await uut.put(path="/test", context=context, body=test_msg)
         self.assertEqual(
             set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
             {context.request_id},
@@ -216,7 +216,7 @@ class TestAPIClient(AioHTTPTestCase):
         # Case 2: test error code
         self.test_handler.expected_status = 400
         context = RequestContext()
-        response = await uut.put(path="/test", ctxt=context, body=test_msg)
+        response = await uut.put(path="/test", context=context, body=test_msg)
         self.assertEqual(400, response.status)
         self.assertEqual(
             set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
@@ -240,7 +240,7 @@ class TestAPIClient(AioHTTPTestCase):
             .add_header("hello", "again")
             .add_param("checking", "1")
         )
-        response = await uut.delete(path="/test", ctxt=context)
+        response = await uut.delete(path="/test", context=context)
         self.assertEqual(200, response.status)
         self.assertEqual(set(response.headers.getall("checking")), {"1"})
         self.assertEqual(set(response.headers.getall("hello")), {"world", "again"})
@@ -252,7 +252,7 @@ class TestAPIClient(AioHTTPTestCase):
         # Case 1: test error code
         self.test_handler.expected_status = 500
         context = RequestContext()
-        response = await uut.delete(path="/test", ctxt=context)
+        response = await uut.delete(path="/test", context=context)
         self.assertEqual(500, response.status)
         self.assertEqual(
             set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
@@ -264,7 +264,7 @@ class TestAPIClient(AioHTTPTestCase):
         test_msg = str(uuid.uuid4()).encode("utf-8")
         self.test_handler.expected_result = test_msg
         context = RequestContext()
-        response = await uut.post(path="/test", ctxt=context)
+        response = await uut.post(path="/test", context=context)
         self.assertEqual(200, response.status)
         self.assertEqual(
             set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
