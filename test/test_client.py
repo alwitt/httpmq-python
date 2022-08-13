@@ -3,6 +3,7 @@
 # pylint: disable=too-few-public-methods
 
 import logging
+import uuid
 from aiohttp import web
 from aiohttp.test_utils import AioHTTPTestCase
 from multidict import CIMultiDict
@@ -17,6 +18,7 @@ class DummyServer:
     def __init__(self):
         """Constructor"""
         self.expected_status = 200
+        self.expected_result = None
 
     async def echo_handler(self, request: web.Request):
         """Echo back the parameters, headers, and payload received"""
@@ -26,7 +28,11 @@ class DummyServer:
         response_header = CIMultiDict()
         response_header.extend(all_queries)
         response_header.extend(all_headers)
-        return web.Response(status=self.expected_status, headers=response_header)
+        return web.Response(
+            status=self.expected_status,
+            headers=response_header,
+            body=self.expected_result,
+        )
 
 
 class TestAPIClient(AioHTTPTestCase):
@@ -51,8 +57,8 @@ class TestAPIClient(AioHTTPTestCase):
         )
         return app
 
-    async def test_basic_sanity(self):
-        """Verify basic function of APIClient"""
+    async def test_get(self):
+        """Verify APIClient.get"""
 
         test_server = self.server
 
@@ -85,3 +91,15 @@ class TestAPIClient(AioHTTPTestCase):
             set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
             {context.request_id},
         )
+
+        self.test_handler.expected_status = 200
+        test_msg = str(uuid.uuid4()).encode("utf-8")
+        self.test_handler.expected_result = test_msg
+        context = RequestContext()
+        response = await uut.get(path="/test", ctxt=context)
+        self.assertEqual(200, response.status)
+        self.assertEqual(
+            set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
+            {context.request_id},
+        )
+        self.assertEqual(response.content, test_msg)
