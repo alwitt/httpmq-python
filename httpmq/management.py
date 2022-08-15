@@ -2,11 +2,19 @@
 
 from http import HTTPStatus
 import json
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
 
 from httpmq import client
 from httpmq.common import HttpmqAPIError, RequestContext
-from httpmq.models import GoutilsRestAPIBaseResponse
+from httpmq.models import (
+    GoutilsRestAPIBaseResponse,
+    ApisAPIRestReqStreamSubjects,
+    ApisAPIRestRespAllJetStreams,
+    ApisAPIRestRespOneJetStream,
+    ApisAPIRestRespStreamInfo,
+    ManagementJSStreamLimits,
+    ManagementJSStreamParam,
+)
 
 
 class MgmtAPIWrapper:
@@ -14,6 +22,7 @@ class MgmtAPIWrapper:
 
     # Endpoints of the management API
     PATH_READY = "/v1/admin/ready"
+    PATH_STREAM = "/v1/admin/stream"
 
     def __init__(self, api_client: client.APIClient):
         """Constructor
@@ -34,7 +43,7 @@ class MgmtAPIWrapper:
                 status_code=resp.status,
                 message="management API is not ready",
             )
-        # Process the message body
+        # Process the response body
         parsed = GoutilsRestAPIBaseResponse.from_dict(json.loads(resp.content))
         if not parsed.success:
             raise HttpmqAPIError.from_rest_base_api_response(parsed)
@@ -42,35 +51,61 @@ class MgmtAPIWrapper:
     #####################################################################################
     # Stream related API functions
 
-    async def create_stream(self, params, context: RequestContext) -> str:
+    async def create_stream(
+        self, params: ManagementJSStreamParam, context: RequestContext
+    ) -> str:
         """Define a new stream
 
         :param params: the new stream parameters
         :param context: the caller context
         :return: request ID in the response
         """
+        # Serialize the request payload
+        payload = json.dumps((params.to_dict())).encode("utf-8")
+        resp = await self.client.post(
+            path=MgmtAPIWrapper.PATH_STREAM, context=context, body=payload
+        )
+        # Process the response body
+        parsed = GoutilsRestAPIBaseResponse.from_dict(json.loads(resp.content))
+        if not parsed.success:
+            raise HttpmqAPIError.from_rest_base_api_response(parsed)
+        return parsed.request_id
 
     async def list_all_streams(
         self, context: RequestContext
-    ) -> Tuple[Dict[str, object], str]:
+    ) -> Tuple[Dict[str, ApisAPIRestRespStreamInfo], str]:
         """Query for list of all known streams
 
         :param context: the caller context
         :return: list of known streams, and request ID in the response
         """
+        resp = await self.client.get(path=MgmtAPIWrapper.PATH_STREAM, context=context)
+        # Process the response body
+        parsed = ApisAPIRestRespAllJetStreams.from_dict(json.loads(resp.content))
+        if not parsed.success:
+            raise HttpmqAPIError.from_rest_base_api_response(parsed)
+        return parsed.streams, parsed.request_id
 
     async def get_stream(
         self, stream: str, context: RequestContext
-    ) -> Tuple[object, str]:
+    ) -> Tuple[ApisAPIRestRespStreamInfo, str]:
         """Query for a particular stream
 
         :param stream: the stream to query for
         :param context: the caller context
         :return: information on the stream, and request ID in the response
         """
+        resp = await self.client.get(
+            path=f"{MgmtAPIWrapper.PATH_STREAM}/{stream}", context=context
+        )
+        # Process the response body
+        parsed = ApisAPIRestRespOneJetStream.from_dict(json.loads(resp.content))
+        if not parsed.success:
+            raise HttpmqAPIError.from_rest_base_api_response(parsed)
+        return parsed.stream, parsed.request_id
 
     async def change_stream_subjects(
-        self, stream: str, new_subjects: list, context: RequestContext
+        self, stream: str, new_subjects: List[str], context: RequestContext
     ) -> str:
         """Change the target subjects of a stream
 
@@ -78,9 +113,21 @@ class MgmtAPIWrapper:
         :param context: the caller context
         :return: request ID in the response
         """
+        request = ApisAPIRestReqStreamSubjects(subjects=new_subjects)
+        payload = json.dumps((request.to_dict())).encode("utf-8")
+        resp = await self.client.put(
+            path=f"{MgmtAPIWrapper.PATH_STREAM}/{stream}/subject",
+            context=context,
+            body=payload,
+        )
+        # Process the response body
+        parsed = GoutilsRestAPIBaseResponse.from_dict(json.loads(resp.content))
+        if not parsed.success:
+            raise HttpmqAPIError.from_rest_base_api_response(parsed)
+        return parsed.request_id
 
     async def update_stream_limits(
-        self, stream: str, limits, context: RequestContext
+        self, stream: str, limits: ManagementJSStreamLimits, context: RequestContext
     ) -> str:
         """Update the data retention limits of a stream
 
@@ -89,6 +136,17 @@ class MgmtAPIWrapper:
         :param context: the caller context
         :return: request ID in the response
         """
+        payload = json.dumps((limits.to_dict())).encode("utf-8")
+        resp = await self.client.put(
+            path=f"{MgmtAPIWrapper.PATH_STREAM}/{stream}/limit",
+            context=context,
+            body=payload,
+        )
+        # Process the response body
+        parsed = GoutilsRestAPIBaseResponse.from_dict(json.loads(resp.content))
+        if not parsed.success:
+            raise HttpmqAPIError.from_rest_base_api_response(parsed)
+        return parsed.request_id
 
     async def delete_stream(self, stream: str, context: RequestContext) -> str:
         """Delete a stream
@@ -97,6 +155,14 @@ class MgmtAPIWrapper:
         :param context: the caller context
         :return: request ID in the response
         """
+        resp = await self.client.delete(
+            path=f"{MgmtAPIWrapper.PATH_STREAM}/{stream}", context=context
+        )
+        # Process the response body
+        parsed = GoutilsRestAPIBaseResponse.from_dict(json.loads(resp.content))
+        if not parsed.success:
+            raise HttpmqAPIError.from_rest_base_api_response(parsed)
+        return parsed.request_id
 
     #####################################################################################
     # Consumer related API functions
