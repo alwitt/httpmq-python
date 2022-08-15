@@ -22,7 +22,7 @@ class APIClient:
     """Handles communication with httpmq"""
 
     class Response:
-        """Abstract object representing a response to a request"""
+        """Object representing a response to a request"""
 
         def __init__(
             self,
@@ -41,6 +41,22 @@ class APIClient:
             self.headers = original_resp.headers
             self.content_type = original_resp.content_type
             self.content = resp_content
+
+    class StreamDataSegment:
+        """Object containing a data segment from a stream"""
+
+        def __init__(self, data: bytes):
+            """Constructor
+
+            :param data: data segment
+            """
+            self.data = data
+
+    class StreamDataEnd:
+        """Object indicating the end of a data stream"""
+
+        def __init__(self):
+            """Constructor"""
 
     @staticmethod
     async def on_request_start(
@@ -198,6 +214,64 @@ class APIClient:
         ) as resp:
             # Convert the response object to a wrapper object
             return APIClient.Response(resp, await resp.read())
+
+    async def get_sse(
+        self,
+        path: str,
+        context: RequestContext,
+        stop_loop: asyncio.Event,
+        result_queue: asyncio.Queue,
+        loop_interval_sec: float = 0.25,
+    ) -> Response:
+        """HTTP GET wrapper supporting server-send-event endpoints
+
+        The client will continue to read data from the server until
+          * The caller request the loop to stop
+          * Some error occurs
+          * The server closes the connection
+
+        The receives bytes is passed back via result queue.
+
+        The loop uses non-blocking read function, so it sleeps between reads.
+
+        :param path: GET target path
+        :param context: request context
+        :param stop_loop: signal to indicate the loop should stop
+        :param result_queue: message queue to transmitting out the data stream
+        :param loop_interval_sec: the sleep interval between non-blocking reads
+        :return: response
+        """
+        # Define the complete header map
+        final_headers = CIMultiDict()
+        if self.base_headers is not None:
+            final_headers.extend(CIMultiDictProxy(self.base_headers))
+        final_headers.extend(context.get_headers())
+        # Make the request
+        async with self.session.get(
+            url=path,
+            params=context.additional_params,
+            headers=final_headers,
+            timeout=(
+                context.request_timeout
+                if context.request_timeout is not None
+                else self.base_timeout
+            ),
+            trace_request_ctx=context,
+        ) as resp:
+            # Start reading the event stream
+            while not stop_loop.is_set() and not resp.content.at_eof():
+                data_segment = resp.content.read_nowait()
+                if data_segment:
+                    await result_queue.put(
+                        APIClient.StreamDataSegment(data=data_segment)
+                    )
+                else:
+                    # Nothing, try again later
+                    await asyncio.sleep(loop_interval_sec)
+            # Indicate end-of-stream
+            await result_queue.put(APIClient.StreamDataEnd())
+            # Convert the response object to a wrapper object
+            return APIClient.Response(resp, None)
 
     async def post(
         self, path: str, context: RequestContext, body: bytes = None
