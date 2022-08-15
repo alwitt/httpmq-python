@@ -118,23 +118,15 @@ class HttpmqAPIError(HttpmqException):
         super().__init__(full_msg)
 
     @staticmethod
-    def new_error(call_response):
-        """Generate a new error
+    def from_rest_base_api_response(resp):
+        """Define HttpmqAPIError from a models/{{ object }} which contain components of
+        GoutilsRestAPIBaseResponse.
 
-        :param call_response: the request response
-        :return: a new error object
+        :param resp: the response structure
         """
         return HttpmqAPIError(
-            request_id=call_response.request_id,
-            status_code=call_response.error.code,
-            message=(
-                call_response.error.message
-                if hasattr(call_response.error, "message")
-                else None
-            ),
-            detail=(
-                call_response.error.detail
-                if hasattr(call_response.error, "detail")
-                else None
-            ),
+            request_id=resp.request_id,
+            status_code=resp.error.code,
+            message=resp.error.message,
+            detail=resp.error.detail,
         )
