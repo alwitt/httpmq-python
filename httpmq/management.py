@@ -7,7 +7,6 @@ from typing import Dict, List, Tuple
 from httpmq import client
 from httpmq.common import HttpmqAPIError, RequestContext
 from httpmq.models import (
-    GoutilsRestAPIBaseResponse,
     ApisAPIRestReqStreamSubjects,
     ApisAPIRestRespAllJetStreamConsumers,
     ApisAPIRestRespAllJetStreams,
@@ -15,6 +14,7 @@ from httpmq.models import (
     ApisAPIRestRespOneJetStream,
     ApisAPIRestRespOneJetStreamConsumer,
     ApisAPIRestRespStreamInfo,
+    GoutilsRestAPIBaseResponse,
     ManagementJetStreamConsumerParam,
     ManagementJSStreamLimits,
     ManagementJSStreamParam,
