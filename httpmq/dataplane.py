@@ -4,8 +4,14 @@
 # pylint: disable=too-few-public-methods
 # pylint: disable=too-many-locals
 
-
-from httpmq.common import RequestContext
+import asyncio
+from http import HTTPStatus
+import json
+from httpmq import client
+from httpmq.common import HttpmqAPIError, RequestContext
+from httpmq.models import (
+    GoutilsRestAPIBaseResponse,
+)
 
 
 class ReceivedMessage:
@@ -42,34 +48,51 @@ class ReceivedMessage:
 class DataAPIWrapper:
     """Client wrapper object for operating the httpmq dataplane API"""
 
-    def __init__(self, api_client):
+    # Endpoints of the management API
+    PATH_READY = "/v1/data/ready"
+
+    def __init__(self, api_client: client.APIClient):
         """Constructor
 
         :param api_client: base client object for interacting with httpmq
         """
+        self.client = api_client
 
-    def ready(self, ctxt: RequestContext):
+    async def ready(self, context: RequestContext):
         """Check whether the httpmq dataplane API is ready. Raise exception if not.
 
-        :param ctxt: the caller context
+        :param context: the caller context
         """
+        resp = await self.client.get(path=DataAPIWrapper.PATH_READY, context=context)
+        if resp.status != HTTPStatus.OK:
+            raise HttpmqAPIError(
+                request_id=context.request_id,
+                status_code=resp.status,
+                message="management API is not ready",
+            )
+        # Process the response body
+        parsed = GoutilsRestAPIBaseResponse.from_dict(json.loads(resp.content))
+        if not parsed.success:
+            raise HttpmqAPIError.from_rest_base_api_response(parsed)
 
-    def publish(self, subject: str, message: bytes, ctxt: RequestContext) -> str:
+    async def publish(
+        self, subject: str, message: bytes, context: RequestContext
+    ) -> str:
         """Publishes a message under a subject
 
         :param subject: the subject to publish under
         :param message: the message to publish
-        :param ctxt: the caller context
+        :param context: the caller context
         :return: request ID in the response
         """
 
-    def send_ack(
+    async def send_ack(
         self,
         stream: str,
         stream_seq: int,
         consumer: str,
         consumer_seq: int,
-        ctxt: RequestContext,
+        context: RequestContext,
     ) -> str:
         """Send a message ACK for an associated JetStream message
 
@@ -91,33 +114,41 @@ class DataAPIWrapper:
         :param stream_seq: the message sequence number within this stream
         :param consumer: name of the consumer that received the message
         :param consumer_seq: the message sequence number for that consumer on this stream
-        :param ctxt: the caller context
+        :param context: the caller context
         :return: request ID in the response
         """
 
-    def push_subscribe(
+    async def push_subscribe(
         self,
         stream: str,
         consumer: str,
         subject_filter: str,
-        process_rx_msg_cb,
-        ctxt: RequestContext,
+        forward_data_cb,
+        context: RequestContext,
+        stop_loop: asyncio.Event,
         max_msg_inflight: int = None,
         delivery_group: str = None,
+        loop_interval_sec: float = 0.25,
     ) -> str:
         """Start a push subscription for a consumer on a stream
 
         This is a blocking function which only exits when either
-          * Connection breaks
-          * Server closes the connection
+          * The caller request the loop to stop
+          * Some error occurs
+          * The server closes the connection
+
+        The receives messages are passed back via a call-back function.
+
+        The loop uses non-blocking read function, so it sleeps between reads.
 
         :param stream: target stream
         :param consumer: consumer name
         :param subject_filter: subscribe for message which subject matches the filter
-        :param process_rx_msg_cb: callback function for handling a received message
-        :param ctxt: the caller context
+        :param forward_data_cb: callback function used to forward data back to the caller
+        :param context: the caller context
+        :param stop_loop: signal to indicate the loop should stop
         :param max_msg_inflight: the max number of inflight messages if provided
-        :param delivery_group: the delivery group the consumer belongs to if the consumer
-            uses one
+        :param delivery_group: the delivery group the consumer belongs to if the consumer uses one
+        :param loop_interval_sec: the sleep interval between non-blocking reads
         :return: request ID in the response
         """
