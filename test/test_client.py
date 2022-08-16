@@ -339,6 +339,9 @@ class TestAPIClient(AioHTTPTestCase):
 
         uut = APIClient(base_url=base_url)
 
+        async def dummy_cb(_):
+            """Dummy support callback function"""
+
         # Case 0: test client side termination
         stop_signal_0 = asyncio.Event()
         rx_caller_0 = asyncio.create_task(
@@ -346,7 +349,7 @@ class TestAPIClient(AioHTTPTestCase):
                 path="/msg",
                 context=RequestContext(),
                 stop_loop=stop_signal_0,
-                result_queue=asyncio.Queue(),
+                forward_data_cb=dummy_cb,
             )
         )
         await asyncio.sleep(0.3)
@@ -360,7 +363,7 @@ class TestAPIClient(AioHTTPTestCase):
                 path="/msg",
                 context=RequestContext(),
                 stop_loop=asyncio.Event(),
-                result_queue=asyncio.Queue(),
+                forward_data_cb=dummy_cb,
             )
         )
         await asyncio.sleep(0.1)
@@ -373,13 +376,18 @@ class TestAPIClient(AioHTTPTestCase):
 
         # Case 2: test data transfer is correct
         msg_queue = asyncio.Queue()
+
+        async def rx_msg_receive(msg):
+            """Support callback function to receive messages"""
+            await msg_queue.put(msg)
+
         stop_signal_2 = asyncio.Event()
         rx_caller_2 = asyncio.create_task(
             uut.get_sse(
                 path="/msg",
                 context=RequestContext(),
                 stop_loop=stop_signal_2,
-                result_queue=msg_queue,
+                forward_data_cb=rx_msg_receive,
             )
         )
         for _ in range(2):

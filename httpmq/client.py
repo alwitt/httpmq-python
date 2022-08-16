@@ -220,7 +220,7 @@ class APIClient:
         path: str,
         context: RequestContext,
         stop_loop: asyncio.Event,
-        result_queue: asyncio.Queue,
+        forward_data_cb,
         loop_interval_sec: float = 0.25,
     ) -> Response:
         """HTTP GET wrapper supporting server-send-event endpoints
@@ -230,14 +230,14 @@ class APIClient:
           * Some error occurs
           * The server closes the connection
 
-        The receives bytes is passed back via result queue.
+        The receives bytes is passed back via a call-back function.
 
         The loop uses non-blocking read function, so it sleeps between reads.
 
         :param path: GET target path
         :param context: request context
         :param stop_loop: signal to indicate the loop should stop
-        :param result_queue: message queue to transmitting out the data stream
+        :param forward_data_cb: callback function used to forward data back to the caller
         :param loop_interval_sec: the sleep interval between non-blocking reads
         :return: response
         """
@@ -262,14 +262,14 @@ class APIClient:
             while not stop_loop.is_set() and not resp.content.at_eof():
                 data_segment = resp.content.read_nowait()
                 if data_segment:
-                    await result_queue.put(
+                    await forward_data_cb(
                         APIClient.StreamDataSegment(data=data_segment)
                     )
                 else:
                     # Nothing, try again later
                     await asyncio.sleep(loop_interval_sec)
             # Indicate end-of-stream
-            await result_queue.put(APIClient.StreamDataEnd())
+            await forward_data_cb(APIClient.StreamDataEnd())
             # Convert the response object to a wrapper object
             return APIClient.Response(resp, None)
 
