@@ -9,9 +9,13 @@ from httpmq.common import HttpmqAPIError, RequestContext
 from httpmq.models import (
     GoutilsRestAPIBaseResponse,
     ApisAPIRestReqStreamSubjects,
+    ApisAPIRestRespAllJetStreamConsumers,
     ApisAPIRestRespAllJetStreams,
+    ApisAPIRestRespConsumerInfo,
     ApisAPIRestRespOneJetStream,
+    ApisAPIRestRespOneJetStreamConsumer,
     ApisAPIRestRespStreamInfo,
+    ManagementJetStreamConsumerParam,
     ManagementJSStreamLimits,
     ManagementJSStreamParam,
 )
@@ -23,6 +27,26 @@ class MgmtAPIWrapper:
     # Endpoints of the management API
     PATH_READY = "/v1/admin/ready"
     PATH_STREAM = "/v1/admin/stream"
+
+    @staticmethod
+    def __one_stream_related_paths(stream_name: str) -> Dict[str, str]:
+        """Helper function to compute the endpoint path related to a stream"""
+        base_path = f"{MgmtAPIWrapper.PATH_STREAM}/{stream_name}"
+        return {
+            "base": base_path,
+            "subject": f"{base_path}/subject",
+            "limit": f"{base_path}/limit",
+        }
+
+    @staticmethod
+    def __consumer_base_path(stream_name: str) -> str:
+        stream_portion = MgmtAPIWrapper.__one_stream_related_paths(stream_name)["base"]
+        return f"{stream_portion}/consumer"
+
+    @staticmethod
+    def __one_consumer_related_path(stream_name: str, consumer_name: str) -> str:
+        base = MgmtAPIWrapper.__consumer_base_path(stream_name)
+        return f"{base}/{consumer_name}"
 
     def __init__(self, api_client: client.APIClient):
         """Constructor
@@ -61,7 +85,7 @@ class MgmtAPIWrapper:
         :return: request ID in the response
         """
         # Serialize the request payload
-        payload = json.dumps((params.to_dict())).encode("utf-8")
+        payload = json.dumps(params.to_dict()).encode("utf-8")
         resp = await self.client.post(
             path=MgmtAPIWrapper.PATH_STREAM, context=context, body=payload
         )
@@ -96,7 +120,8 @@ class MgmtAPIWrapper:
         :return: information on the stream, and request ID in the response
         """
         resp = await self.client.get(
-            path=f"{MgmtAPIWrapper.PATH_STREAM}/{stream}", context=context
+            path=MgmtAPIWrapper.__one_stream_related_paths(stream)["base"],
+            context=context,
         )
         # Process the response body
         parsed = ApisAPIRestRespOneJetStream.from_dict(json.loads(resp.content))
@@ -114,9 +139,9 @@ class MgmtAPIWrapper:
         :return: request ID in the response
         """
         request = ApisAPIRestReqStreamSubjects(subjects=new_subjects)
-        payload = json.dumps((request.to_dict())).encode("utf-8")
+        payload = json.dumps(request.to_dict()).encode("utf-8")
         resp = await self.client.put(
-            path=f"{MgmtAPIWrapper.PATH_STREAM}/{stream}/subject",
+            path=MgmtAPIWrapper.__one_stream_related_paths(stream)["subject"],
             context=context,
             body=payload,
         )
@@ -136,9 +161,9 @@ class MgmtAPIWrapper:
         :param context: the caller context
         :return: request ID in the response
         """
-        payload = json.dumps((limits.to_dict())).encode("utf-8")
+        payload = json.dumps(limits.to_dict()).encode("utf-8")
         resp = await self.client.put(
-            path=f"{MgmtAPIWrapper.PATH_STREAM}/{stream}/limit",
+            path=MgmtAPIWrapper.__one_stream_related_paths(stream)["limit"],
             context=context,
             body=payload,
         )
@@ -156,7 +181,8 @@ class MgmtAPIWrapper:
         :return: request ID in the response
         """
         resp = await self.client.delete(
-            path=f"{MgmtAPIWrapper.PATH_STREAM}/{stream}", context=context
+            path=MgmtAPIWrapper.__one_stream_related_paths(stream)["base"],
+            context=context,
         )
         # Process the response body
         parsed = GoutilsRestAPIBaseResponse.from_dict(json.loads(resp.content))
@@ -170,7 +196,7 @@ class MgmtAPIWrapper:
     async def create_consumer_for_stream(
         self,
         stream: str,
-        params,
+        params: ManagementJetStreamConsumerParam,
         context: RequestContext,
     ) -> str:
         """Define a new customer on a stream
@@ -180,22 +206,43 @@ class MgmtAPIWrapper:
         :param context: the caller context
         :return: request ID in the response
         """
+        payload = json.dumps(params.to_dict()).encode("utf-8")
+        resp = await self.client.post(
+            path=MgmtAPIWrapper.__consumer_base_path(stream),
+            context=context,
+            body=payload,
+        )
+        # Process the response body
+        parsed = GoutilsRestAPIBaseResponse.from_dict(json.loads(resp.content))
+        if not parsed.success:
+            raise HttpmqAPIError.from_rest_base_api_response(parsed)
+        return parsed.request_id
 
     async def list_all_consumer_of_stream(
         self,
         stream: str,
         context: RequestContext,
-    ) -> Tuple[Dict[str, object], str]:
+    ) -> Tuple[Dict[str, ApisAPIRestRespConsumerInfo], str]:
         """List of all known consumers on a stream
 
         :param stream: the stream to query for
         :param context: the caller context
         :return: list of known consumers of a stream, and request ID in the response
         """
+        resp = await self.client.get(
+            path=MgmtAPIWrapper.__consumer_base_path(stream), context=context
+        )
+        # Process the response body
+        parsed = ApisAPIRestRespAllJetStreamConsumers.from_dict(
+            json.loads(resp.content)
+        )
+        if not parsed.success:
+            raise HttpmqAPIError.from_rest_base_api_response(parsed)
+        return parsed.consumers, parsed.request_id
 
     async def get_consumer_of_stream(
         self, stream: str, consumer: str, context: RequestContext
-    ) -> Tuple[object, str]:
+    ) -> Tuple[ApisAPIRestRespConsumerInfo, str]:
         """Query for a particular consumer on a stream
 
         :param stream: name of the stream
@@ -203,10 +250,21 @@ class MgmtAPIWrapper:
         :param context: the caller context
         :return: information on a consumer, and request ID in the response
         """
+        resp = await self.client.get(
+            path=MgmtAPIWrapper.__one_consumer_related_path(
+                stream_name=stream, consumer_name=consumer
+            ),
+            context=context,
+        )
+        # Process the response body
+        parsed = ApisAPIRestRespOneJetStreamConsumer.from_dict(json.loads(resp.content))
+        if not parsed.success:
+            raise HttpmqAPIError.from_rest_base_api_response(parsed)
+        return parsed.consumer, parsed.request_id
 
     async def delete_consumer_on_stream(
         self, stream: str, consumer: str, context: RequestContext
-    ):
+    ) -> str:
         """Delete a consumer on a stream
 
         :param stream: name of the stream
@@ -214,3 +272,14 @@ class MgmtAPIWrapper:
         :param context: the caller context
         :return: request ID in the response
         """
+        resp = await self.client.delete(
+            path=MgmtAPIWrapper.__one_consumer_related_path(
+                stream_name=stream, consumer_name=consumer
+            ),
+            context=context,
+        )
+        # Process the response body
+        parsed = GoutilsRestAPIBaseResponse.from_dict(json.loads(resp.content))
+        if not parsed.success:
+            raise HttpmqAPIError.from_rest_base_api_response(parsed)
+        return parsed.request_id
