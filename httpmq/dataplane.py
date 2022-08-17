@@ -5,13 +5,20 @@
 # pylint: disable=too-many-locals
 
 import asyncio
+import base64
 from http import HTTPStatus
 import json
+import logging
+from typing import Dict, List, Union
 from httpmq import client
-from httpmq.common import HttpmqAPIError, RequestContext
+from httpmq.common import HttpmqInternalError, HttpmqAPIError, RequestContext
 from httpmq.models import (
+    ApisAPIRestRespDataMessage,
+    DataplaneAckSeqNum,
     GoutilsRestAPIBaseResponse,
 )
+
+LOG = logging.getLogger("httpmq-sdk.dataplane")
 
 
 class ReceivedMessage:
@@ -50,6 +57,19 @@ class DataAPIWrapper:
 
     # Endpoints of the management API
     PATH_READY = "/v1/data/ready"
+    PATH_PUBLISH_BASE = "/v1/data/subject"
+    PATH_SUBSCRIBE_BASE = "/v1/data/stream"
+
+    @staticmethod
+    def __publish_path(subject: str) -> str:
+        """Helper function to compute the endpoint path for message publish"""
+        return f"{DataAPIWrapper.PATH_PUBLISH_BASE}/{subject}"
+
+    @staticmethod
+    def __subscribe_paths(stream: str, consumer: str) -> Dict[str, str]:
+        """Helper function to compute the endpoint path related to subscription"""
+        base_path = f"{DataAPIWrapper.PATH_SUBSCRIBE_BASE}/{stream}/consumer/{consumer}"
+        return {"base": base_path, "push_sub": base_path, "ack": f"{base_path}/ack"}
 
     def __init__(self, api_client: client.APIClient):
         """Constructor
@@ -85,6 +105,16 @@ class DataAPIWrapper:
         :param context: the caller context
         :return: request ID in the response
         """
+        # Base64 encode the message
+        encoded = base64.b64encode(message)
+        resp = await self.client.post(
+            path=DataAPIWrapper.__publish_path(subject), context=context, body=encoded
+        )
+        # Process the response body
+        parsed = GoutilsRestAPIBaseResponse.from_dict(json.loads(resp.content))
+        if not parsed.success:
+            raise HttpmqAPIError.from_rest_base_api_response(parsed)
+        return parsed.request_id
 
     async def send_ack(
         self,
@@ -117,6 +147,42 @@ class DataAPIWrapper:
         :param context: the caller context
         :return: request ID in the response
         """
+        payload = json.dumps(
+            DataplaneAckSeqNum(consumer=consumer_seq, stream=stream_seq).to_dict()
+        ).encode("utf-8")
+        resp = await self.client.post(
+            path=(
+                DataAPIWrapper.__subscribe_paths(stream=stream, consumer=consumer)[
+                    "ack"
+                ]
+            ),
+            context=context,
+            body=payload,
+        )
+        # Process the response body
+        parsed = GoutilsRestAPIBaseResponse.from_dict(json.loads(resp.content))
+        if not parsed.success:
+            raise HttpmqAPIError.from_rest_base_api_response(parsed)
+        return parsed.request_id
+
+    async def send_ack_simple(
+        self, original_msg: ReceivedMessage, context: RequestContext
+    ) -> str:
+        """Send a message ACK for an associated JetStream message
+
+        This is a wrapper around `send_ack`.
+
+        :param orignal_msg: the received JetStream message
+        :param context: the caller context
+        :return: request ID in the response
+        """
+        return await self.send_ack(
+            stream=original_msg.stream,
+            stream_seq=original_msg.stream_seq,
+            consumer=original_msg.consumer,
+            consumer_seq=original_msg.consumer_seq,
+            context=context,
+        )
 
     async def push_subscribe(
         self,
@@ -152,3 +218,123 @@ class DataAPIWrapper:
         :param loop_interval_sec: the sleep interval between non-blocking reads
         :return: request ID in the response
         """
+        # Update request context with additional query parameters
+        context.add_param(param_name="subject_name", param_value=subject_filter)
+        if max_msg_inflight is not None:
+            context.add_param(
+                param_name="max_msg_inflight", param_value=max_msg_inflight
+            )
+        if delivery_group is not None:
+            context.add_param(param_name="delivery_group", param_value=delivery_group)
+
+        # URL path for the push subscription
+        target_path = DataAPIWrapper.__subscribe_paths(
+            stream=stream, consumer=consumer
+        )["push_sub"]
+
+        # Callback for processing the byte string
+        assemble_buffer = DataAPIWrapper.RxMessageSplitter()
+
+        async def process_stream_segment(
+            msg: Union[
+                client.APIClient.StreamDataSegment, client.APIClient.StreamDataEnd
+            ]
+        ):
+            """Helper function to marshal the bytes stream being received"""
+            if isinstance(msg, client.APIClient.StreamDataEnd):
+                LOG.debug("[%s] Push-subscribe loop ended", context.request_id)
+                return
+            if isinstance(msg, client.APIClient.StreamDataSegment):
+                # Process the message byte
+                messages = assemble_buffer.process_new_segment(msg.data)
+                for one_msg in messages:
+                    # Decode each message
+                    parsed = ApisAPIRestRespDataMessage.from_dict(one_msg)
+                    if not parsed.success:
+                        error = HttpmqAPIError.from_rest_base_api_response(parsed)
+                        await forward_data_cb(error)
+                        raise error
+                    LOG.debug(
+                        "[%s] Push-subscribe received message [S:%d, C:%d]",
+                        parsed.request_id,
+                        parsed.sequence.stream,
+                        parsed.sequence.consumer,
+                    )
+                    # Perform Base64 decode
+                    decoded = base64.b64decode(parsed.b64_msg)
+                    # Repackage the message
+                    message = ReceivedMessage(
+                        stream=parsed.stream,
+                        stream_seq=parsed.sequence.stream,
+                        consumer=parsed.consumer,
+                        consumer_seq=parsed.sequence.consumer,
+                        subject=parsed.subject,
+                        request_id=parsed.request_id,
+                        message=decoded,
+                    )
+                    await forward_data_cb(message)
+                return
+            raise HttpmqInternalError(
+                request_id=context.request_id,
+                message=(
+                    f"`APIClient.get_sse` returned unexpected result type: {type(msg)}"
+                ),
+            )
+
+        resp = await self.client.get_sse(
+            path=target_path,
+            context=context,
+            stop_loop=stop_loop,
+            forward_data_cb=process_stream_segment,
+            loop_interval_sec=loop_interval_sec,
+        )
+        if resp.status != HTTPStatus.OK:
+            raise HttpmqAPIError.from_rest_base_api_response(
+                GoutilsRestAPIBaseResponse.from_dict(json.loads(resp.content))
+            )
+
+        LOG.debug("[%s] Leaving push-subscribe runner", context.request_id)
+        return context.request_id
+
+    class RxMessageSplitter:
+        """
+        Support class for taking the text stream from the push subscription endpoint, and
+        separate that out into individual messages
+        """
+
+        def __init__(self):
+            """Constructor"""
+            self.left_over = None
+
+        def process_new_segment(self, stream_chunk: bytes) -> List[Dict[str, object]]:
+            """Given a new stream chunk, process a list of parsed DICT
+
+            :param stream_chunk: new message chunk
+            :return: list of parsed DICTs
+            """
+            if not stream_chunk:
+                return []
+
+            # Split the chunk by NL
+            lines = stream_chunk.decode("utf-8").split("\n")
+            if len(lines) == 0:
+                return []
+
+            parsed_lines = []
+            # Process each line
+            for one_line in lines:
+                to_process = one_line
+                # If there were leftovers, combine the current one with leftover
+                if self.left_over is not None:
+                    to_process = self.left_over + one_line
+                    self.left_over = None
+                if not to_process:
+                    continue
+                try:
+                    parsed = json.loads(to_process)
+                    parsed_lines.append(parsed)
+                except json.decoder.JSONDecodeError:
+                    # Parse failure, assume incomplete
+                    self.left_over = to_process
+
+            return parsed_lines

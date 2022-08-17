@@ -5,6 +5,7 @@
 # pylint: disable=consider-using-f-string
 
 import asyncio
+from http import HTTPStatus
 import logging
 import ssl
 import traceback
@@ -258,6 +259,8 @@ class APIClient:
             ),
             trace_request_ctx=context,
         ) as resp:
+            if resp.status != HTTPStatus.OK:
+                return APIClient.Response(resp, await resp.read())
             # Start reading the event stream
             while not stop_loop.is_set() and not resp.content.at_eof():
                 data_segment = resp.content.read_nowait()

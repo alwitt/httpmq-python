@@ -94,7 +94,7 @@ class HttpmqException(Exception):
 
 
 class HttpmqAPIError(HttpmqException):
-    """Custom error returned by httpmq"""
+    """Custom API related error returned by httpmq"""
 
     def __init__(
         self, request_id: str, status_code: int, message: str = None, detail: str = None
@@ -130,3 +130,16 @@ class HttpmqAPIError(HttpmqException):
             message=resp.error.message,
             detail=resp.error.detail,
         )
+
+
+class HttpmqInternalError(HttpmqException):
+    """Custom core error returned by httpmq-python"""
+
+    def __init__(self, request_id: str, message: str):
+        """Constructor
+
+        :param request_id: the request ID to match against logs
+        :param message: descriptive message
+        """
+        full_msg = f"Request '{request_id}' failed because of [{message}]"
+        super().__init__(full_msg)

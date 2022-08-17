@@ -2,6 +2,7 @@
 
 from http import HTTPStatus
 import json
+import logging
 from typing import Dict, List, Tuple
 
 from httpmq import client
@@ -19,6 +20,8 @@ from httpmq.models import (
     ManagementJSStreamLimits,
     ManagementJSStreamParam,
 )
+
+LOG = logging.getLogger("httpmq-sdk.management")
 
 
 class MgmtAPIWrapper:
