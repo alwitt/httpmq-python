@@ -4,6 +4,7 @@
 
 # pylint: disable=no-value-for-parameter
 # pylint: disable=broad-except
+# pylint: disable=function-redefined
 
 import asyncio
 from datetime import timedelta
@@ -20,7 +21,11 @@ from httpmq import configure_sdk_logging
 from httpmq.client import APIClient
 from httpmq.common import RequestContext
 from httpmq.management import MgmtAPIWrapper
-from httpmq.models import ManagementJSStreamParam, ManagementJSStreamLimits
+from httpmq.models import (
+    ManagementJSStreamParam,
+    ManagementJSStreamLimits,
+    ManagementJetStreamConsumerParam,
+)
 
 
 @click.group(context_settings={"show_default": True})
@@ -315,6 +320,156 @@ def change_retention(ctx, name: str, max_message_age_hours: float):
         try:
             resp_rid = await mgmt_client.update_stream_limits(
                 stream=name, limits=new_limits, context=ctx.obj["context"]
+            )
+            log.debug("Returned request-id '%s'", resp_rid)
+        except Exception as err:
+            log.error(
+                "".join(traceback.format_exception(type(err), err, err.__traceback__))
+            )
+        await mgmt_client.disconnect()
+
+    ctx.obj["asyncio_loop"].run_until_complete(core_func())
+
+
+################################################################################################
+# Consumer management
+
+
+@management.group()
+@click.option(
+    "--target-stream",
+    "-s",
+    required=True,
+    envvar="TARGET_STREAM",
+    show_envvar=True,
+    help="Target stream to operate against",
+)
+@click.pass_context
+def consumer(ctx, target_stream: str):
+    """Manages consumers through httpmq management API"""
+    ctx.obj["target_stream"] = target_stream
+
+
+@consumer.command()
+@click.option("--name", "-n", required=True, help="JetStream consumer name")
+@click.option("--subject-filter", "-s", required=True, help="Target subject filter")
+@click.option(
+    "--max-inflight",
+    "-m",
+    type=int,
+    default=1,
+    help="Max number of inflight / unACKed messages allowed at once",
+)
+@click.option("--delivery-group", "-g", required=False, help="Consumer delivery group")
+@click.pass_context
+def create(
+    ctx, name: str, subject_filter: str, max_inflight: int, delivery_group: str = None
+):
+    """Define a new consumer through httpmq management API"""
+    log = ctx.obj["logger"]
+
+    async def core_func():
+        """Core logic"""
+        mgmt_client: MgmtAPIWrapper = define_management_client(ctx)
+        params = ManagementJetStreamConsumerParam(
+            name=name,
+            mode="push",
+            filter_subject=subject_filter,
+            max_inflight=max_inflight,
+            delivery_group=delivery_group,
+        )
+        try:
+            resp_rid = await mgmt_client.create_consumer_for_stream(
+                stream=ctx.obj["target_stream"],
+                params=params,
+                context=ctx.obj["context"],
+            )
+            log.debug("Returned request-id '%s'", resp_rid)
+        except Exception as err:
+            log.error(
+                "".join(traceback.format_exception(type(err), err, err.__traceback__))
+            )
+        await mgmt_client.disconnect()
+
+    ctx.obj["asyncio_loop"].run_until_complete(core_func())
+
+
+@consumer.command()
+@click.pass_context
+def list_all(ctx):
+    """List all consumers of a stream through httpmq management API"""
+    log = ctx.obj["logger"]
+
+    async def core_func():
+        """Core logic"""
+        mgmt_client: MgmtAPIWrapper = define_management_client(ctx)
+        try:
+            all_consumers, resp_rid = await mgmt_client.list_all_consumer_of_stream(
+                stream=ctx.obj["target_stream"],
+                context=ctx.obj["context"],
+            )
+            log.debug("Returned request-id '%s'", resp_rid)
+            # Convert the result
+            for_output = {
+                consumer_name: consumer_param.to_dict()
+                for consumer_name, consumer_param in all_consumers.items()
+            }
+            log.info("Available consumer:\n%s", json.dumps(for_output, indent="  "))
+        except Exception as err:
+            log.error(
+                "".join(traceback.format_exception(type(err), err, err.__traceback__))
+            )
+        await mgmt_client.disconnect()
+
+    ctx.obj["asyncio_loop"].run_until_complete(core_func())
+
+
+@consumer.command()
+@click.option("--name", "-n", required=True, help="JetStream consumer name")
+@click.pass_context
+def get(ctx, name: str):
+    """Read information regarding one consumer through management API"""
+    log = ctx.obj["logger"]
+
+    async def core_func():
+        """Core logic"""
+        mgmt_client: MgmtAPIWrapper = define_management_client(ctx)
+        try:
+            one_consumer, resp_rid = await mgmt_client.get_consumer_of_stream(
+                stream=ctx.obj["target_stream"],
+                context=ctx.obj["context"],
+                consumer=name,
+            )
+            log.debug("Returned request-id '%s'", resp_rid)
+            log.info(
+                "Consumer %s:\n%s",
+                name,
+                json.dumps(one_consumer.to_dict(), indent="  "),
+            )
+        except Exception as err:
+            log.error(
+                "".join(traceback.format_exception(type(err), err, err.__traceback__))
+            )
+        await mgmt_client.disconnect()
+
+    ctx.obj["asyncio_loop"].run_until_complete(core_func())
+
+
+@consumer.command()
+@click.option("--name", "-n", required=True, help="JetStream consumer name")
+@click.pass_context
+def delete(ctx, name: str):
+    """Delete a consumer through httpmq management API"""
+    log = ctx.obj["logger"]
+
+    async def core_func():
+        """Core logic"""
+        mgmt_client: MgmtAPIWrapper = define_management_client(ctx)
+        try:
+            resp_rid = await mgmt_client.delete_consumer_on_stream(
+                stream=ctx.obj["target_stream"],
+                consumer=name,
+                context=ctx.obj["context"],
             )
             log.debug("Returned request-id '%s'", resp_rid)
         except Exception as err:
