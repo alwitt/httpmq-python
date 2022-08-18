@@ -78,6 +78,10 @@ class DataAPIWrapper:
         """
         self.client = api_client
 
+    async def disconnect(self):
+        """Disconnect from the server"""
+        await self.client.disconnect()
+
     async def ready(self, context: RequestContext):
         """Check whether the httpmq dataplane API is ready. Raise exception if not.
 

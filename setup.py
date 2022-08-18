@@ -7,7 +7,7 @@ setup(
     author="Rhine Cliff",
     author_email="rhinecliff@protonmail.com",
     packages=find_packages(exclude=["test", "scripts"]),
-    scripts=[],
+    scripts=["scripts/httpmq_test_cli.py"],
     include_package_data=True,
     zip_safe=True,
     install_requires=[

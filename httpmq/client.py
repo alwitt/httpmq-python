@@ -189,6 +189,10 @@ class APIClient:
         )
         LOG.debug("Defined aiohttp client connecting to '%s'", base_url)
 
+    async def disconnect(self):
+        """Disconnect from the server"""
+        await self.session.close()
+
     async def get(self, path: str, context: RequestContext) -> Response:
         """HTTP GET wrapper
 
@@ -204,6 +208,7 @@ class APIClient:
         # Make the request
         async with self.session.get(
             url=path,
+            ssl=self.ssl,
             params=context.additional_params,
             headers=final_headers,
             timeout=(
@@ -250,6 +255,7 @@ class APIClient:
         # Make the request
         async with self.session.get(
             url=path,
+            ssl=self.ssl,
             params=context.additional_params,
             headers=final_headers,
             timeout=(
@@ -294,6 +300,7 @@ class APIClient:
         # Make the request
         async with self.session.post(
             url=path,
+            ssl=self.ssl,
             params=context.additional_params,
             headers=final_headers,
             timeout=(
@@ -325,6 +332,7 @@ class APIClient:
         # Make the request
         async with self.session.put(
             url=path,
+            ssl=self.ssl,
             params=context.additional_params,
             headers=final_headers,
             timeout=(
@@ -353,6 +361,7 @@ class APIClient:
         # Make the request
         async with self.session.delete(
             url=path,
+            ssl=self.ssl,
             params=context.additional_params,
             headers=final_headers,
             timeout=(
