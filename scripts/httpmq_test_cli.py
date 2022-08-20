@@ -76,8 +76,11 @@ def cli(ctx, custom_ca_file: str, access_token: str, request_id: str, verbose: b
     else:
         ctx.obj["custom_ca"] = None
 
-    request_context = RequestContext()
-    request_context.set_request_id(request_id=request_id)
+    request_context = (
+        RequestContext()
+        .set_request_id(request_id=request_id)
+        .add_header("User-Agent", "httpmq-demo")
+    )
 
     if access_token is not None:
         request_context.add_header_auth_token(f"Bearer {access_token}")
