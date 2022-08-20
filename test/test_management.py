@@ -8,7 +8,7 @@ import uuid
 import aiohttp
 from httpmq.client import APIClient
 from httpmq.common import RequestContext, HttpmqAPIError
-from httpmq.management import MgmtAPIWrapper
+from httpmq.management import ManagementClient
 from httpmq.models import (
     ManagementJetStreamConsumerParam,
     ManagementJSStreamLimits,
@@ -25,11 +25,11 @@ class TestManagement(BaseTestCase):
         """Basic sanity check of management API client"""
 
         core_client = APIClient(base_url=get_unittest_httpmq_mgmt_api_url())
-        mgmt_client = MgmtAPIWrapper(api_client=core_client)
+        mgmt_client = ManagementClient(api_client=core_client)
         await mgmt_client.ready(context=RequestContext())
 
         another_client = APIClient(base_url="http://127.0.0.1:17881")
-        another_mgmt_client = MgmtAPIWrapper(api_client=another_client)
+        another_mgmt_client = ManagementClient(api_client=another_client)
         with self.assertRaises(aiohttp.client_exceptions.ClientConnectorError):
             await another_mgmt_client.ready(context=RequestContext())
 
@@ -37,7 +37,7 @@ class TestManagement(BaseTestCase):
     async def test_stream_management(self):
         """Verify stream management"""
 
-        mgmt_client = MgmtAPIWrapper(
+        mgmt_client = ManagementClient(
             api_client=APIClient(base_url=get_unittest_httpmq_mgmt_api_url())
         )
         await mgmt_client.ready(context=RequestContext())
@@ -132,7 +132,7 @@ class TestManagement(BaseTestCase):
     async def test_consumer_management(self):
         """Verify consumer management"""
 
-        mgmt_client = MgmtAPIWrapper(
+        mgmt_client = ManagementClient(
             api_client=APIClient(base_url=get_unittest_httpmq_mgmt_api_url())
         )
         await mgmt_client.ready(context=RequestContext())

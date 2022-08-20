@@ -52,7 +52,7 @@ class ReceivedMessage:
         self.request_id = request_id
 
 
-class DataAPIWrapper:
+class DataClient:
     """Client wrapper object for operating the httpmq dataplane API"""
 
     # Endpoints of the management API
@@ -63,12 +63,12 @@ class DataAPIWrapper:
     @staticmethod
     def __publish_path(subject: str) -> str:
         """Helper function to compute the endpoint path for message publish"""
-        return f"{DataAPIWrapper.PATH_PUBLISH_BASE}/{subject}"
+        return f"{DataClient.PATH_PUBLISH_BASE}/{subject}"
 
     @staticmethod
     def __subscribe_paths(stream: str, consumer: str) -> Dict[str, str]:
         """Helper function to compute the endpoint path related to subscription"""
-        base_path = f"{DataAPIWrapper.PATH_SUBSCRIBE_BASE}/{stream}/consumer/{consumer}"
+        base_path = f"{DataClient.PATH_SUBSCRIBE_BASE}/{stream}/consumer/{consumer}"
         return {"base": base_path, "push_sub": base_path, "ack": f"{base_path}/ack"}
 
     def __init__(self, api_client: client.APIClient):
@@ -87,7 +87,7 @@ class DataAPIWrapper:
 
         :param context: the caller context
         """
-        resp = await self.client.get(path=DataAPIWrapper.PATH_READY, context=context)
+        resp = await self.client.get(path=DataClient.PATH_READY, context=context)
         if resp.status != HTTPStatus.OK:
             raise HttpmqAPIError(
                 request_id=context.request_id,
@@ -112,7 +112,7 @@ class DataAPIWrapper:
         # Base64 encode the message
         encoded = base64.b64encode(message)
         resp = await self.client.post(
-            path=DataAPIWrapper.__publish_path(subject), context=context, body=encoded
+            path=DataClient.__publish_path(subject), context=context, body=encoded
         )
         # Process the response body
         parsed = GoutilsRestAPIBaseResponse.from_dict(json.loads(resp.content))
@@ -156,9 +156,7 @@ class DataAPIWrapper:
         ).encode("utf-8")
         resp = await self.client.post(
             path=(
-                DataAPIWrapper.__subscribe_paths(stream=stream, consumer=consumer)[
-                    "ack"
-                ]
+                DataClient.__subscribe_paths(stream=stream, consumer=consumer)["ack"]
             ),
             context=context,
             body=payload,
@@ -232,12 +230,12 @@ class DataAPIWrapper:
             context.add_param(param_name="delivery_group", param_value=delivery_group)
 
         # URL path for the push subscription
-        target_path = DataAPIWrapper.__subscribe_paths(
-            stream=stream, consumer=consumer
-        )["push_sub"]
+        target_path = DataClient.__subscribe_paths(stream=stream, consumer=consumer)[
+            "push_sub"
+        ]
 
         # Callback for processing the byte string
-        assemble_buffer = DataAPIWrapper.RxMessageSplitter()
+        assemble_buffer = DataClient.RxMessageSplitter()
 
         async def process_stream_segment(
             msg: Union[

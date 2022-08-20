@@ -23,8 +23,8 @@ import click
 from httpmq import configure_sdk_logging
 from httpmq.client import APIClient
 from httpmq.common import HttpmqAPIError, RequestContext
-from httpmq.dataplane import DataAPIWrapper, ReceivedMessage
-from httpmq.management import MgmtAPIWrapper
+from httpmq.dataplane import DataClient, ReceivedMessage
+from httpmq.management import ManagementClient
 from httpmq.models import (
     ManagementJSStreamParam,
     ManagementJSStreamLimits,
@@ -110,13 +110,13 @@ def manage(ctx, management_server_url: str):
     ctx.obj["url"] = management_server_url
 
 
-def define_management_client(ctx) -> MgmtAPIWrapper:
+def define_management_client(ctx) -> ManagementClient:
     """Define a management API wrapper client"""
     api_client = APIClient(
         base_url=ctx.obj["url"],
         ssl_context=ctx.obj["custom_ca"],
     )
-    return MgmtAPIWrapper(api_client=api_client)
+    return ManagementClient(api_client=api_client)
 
 
 @manage.command()
@@ -127,7 +127,7 @@ def ready(ctx):
 
     async def core_func():
         """Core logic"""
-        mgmt_client: MgmtAPIWrapper = define_management_client(ctx)
+        mgmt_client: ManagementClient = define_management_client(ctx)
         try:
             await mgmt_client.ready(ctx.obj["context"])
             log.info("Management API Ready")
@@ -173,7 +173,7 @@ def create(ctx, name: str, subjects: List[str], max_message_age_hours: float):
 
     async def core_func():
         """Core logic"""
-        mgmt_client: MgmtAPIWrapper = define_management_client(ctx)
+        mgmt_client: ManagementClient = define_management_client(ctx)
         params = ManagementJSStreamParam(
             name=name,
             subjects=subjects if subjects else [name],
@@ -201,7 +201,7 @@ def list_all(ctx):
 
     async def core_func():
         """Core logic"""
-        mgmt_client: MgmtAPIWrapper = define_management_client(ctx)
+        mgmt_client: ManagementClient = define_management_client(ctx)
         try:
             all_streams, resp_rid = await mgmt_client.list_all_streams(
                 context=ctx.obj["context"]
@@ -231,7 +231,7 @@ def get(ctx, name: str):
 
     async def core_func():
         """Core logic"""
-        mgmt_client: MgmtAPIWrapper = define_management_client(ctx)
+        mgmt_client: ManagementClient = define_management_client(ctx)
         try:
             one_stream, resp_rid = await mgmt_client.get_stream(
                 stream=name, context=ctx.obj["context"]
@@ -258,7 +258,7 @@ def delete(ctx, name: str):
 
     async def core_func():
         """Core logic"""
-        mgmt_client: MgmtAPIWrapper = define_management_client(ctx)
+        mgmt_client: ManagementClient = define_management_client(ctx)
         try:
             resp_rid = await mgmt_client.delete_stream(
                 stream=name, context=ctx.obj["context"]
@@ -289,7 +289,7 @@ def change_subject(ctx, name: str, subjects: List[str]):
 
     async def core_func():
         """Core logic"""
-        mgmt_client: MgmtAPIWrapper = define_management_client(ctx)
+        mgmt_client: ManagementClient = define_management_client(ctx)
         try:
             resp_rid = await mgmt_client.change_stream_subjects(
                 stream=name, new_subjects=subjects, context=ctx.obj["context"]
@@ -320,7 +320,7 @@ def change_retention(ctx, name: str, max_message_age_hours: float):
 
     async def core_func():
         """Core logic"""
-        mgmt_client: MgmtAPIWrapper = define_management_client(ctx)
+        mgmt_client: ManagementClient = define_management_client(ctx)
         new_limits = ManagementJSStreamLimits(
             max_age=int(timedelta(hours=max_message_age_hours).total_seconds() * 1e9),
         )
@@ -377,7 +377,7 @@ def create(
 
     async def core_func():
         """Core logic"""
-        mgmt_client: MgmtAPIWrapper = define_management_client(ctx)
+        mgmt_client: ManagementClient = define_management_client(ctx)
         params = ManagementJetStreamConsumerParam(
             name=name,
             mode="push",
@@ -409,7 +409,7 @@ def list_all(ctx):
 
     async def core_func():
         """Core logic"""
-        mgmt_client: MgmtAPIWrapper = define_management_client(ctx)
+        mgmt_client: ManagementClient = define_management_client(ctx)
         try:
             all_consumers, resp_rid = await mgmt_client.list_all_consumer_of_stream(
                 stream=ctx.obj["target_stream"],
@@ -440,7 +440,7 @@ def get(ctx, name: str):
 
     async def core_func():
         """Core logic"""
-        mgmt_client: MgmtAPIWrapper = define_management_client(ctx)
+        mgmt_client: ManagementClient = define_management_client(ctx)
         try:
             one_consumer, resp_rid = await mgmt_client.get_consumer_of_stream(
                 stream=ctx.obj["target_stream"],
@@ -471,7 +471,7 @@ def delete(ctx, name: str):
 
     async def core_func():
         """Core logic"""
-        mgmt_client: MgmtAPIWrapper = define_management_client(ctx)
+        mgmt_client: ManagementClient = define_management_client(ctx)
         try:
             resp_rid = await mgmt_client.delete_consumer_on_stream(
                 stream=ctx.obj["target_stream"],
@@ -510,13 +510,13 @@ def data(ctx, dataplane_server_url: str):
     ctx.obj["url"] = dataplane_server_url
 
 
-def define_dataplane_client(ctx) -> DataAPIWrapper:
+def define_dataplane_client(ctx) -> DataClient:
     """Define a dataplane API wrapper client"""
     api_client = APIClient(
         base_url=ctx.obj["url"],
         ssl_context=ctx.obj["custom_ca"],
     )
-    return DataAPIWrapper(api_client=api_client)
+    return DataClient(api_client=api_client)
 
 
 @data.command()
@@ -527,7 +527,7 @@ def ready(ctx):
 
     async def core_func():
         """Core logic"""
-        data_client: DataAPIWrapper = define_dataplane_client(ctx)
+        data_client: DataClient = define_dataplane_client(ctx)
         try:
             await data_client.ready(ctx.obj["context"])
             log.info("Dataplane API Ready")
@@ -550,7 +550,7 @@ def pub(ctx, subject: str, message: str):
 
     async def core_func():
         """Core logic"""
-        data_client: DataAPIWrapper = define_dataplane_client(ctx)
+        data_client: DataClient = define_dataplane_client(ctx)
         try:
             resp_rid = await data_client.publish(
                 subject=subject,
@@ -606,7 +606,7 @@ def sub(
 
     async def core_func():
         """Core logic"""
-        data_client: DataAPIWrapper = define_dataplane_client(ctx)
+        data_client: DataClient = define_dataplane_client(ctx)
         try:
             # Callback function to process the messages
             async def handle_msg(msg: Union[ReceivedMessage, HttpmqAPIError]):

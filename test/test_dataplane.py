@@ -9,8 +9,8 @@ import uuid
 import aiohttp
 from httpmq.client import APIClient
 from httpmq.common import HttpmqAPIError, RequestContext
-from httpmq.dataplane import DataAPIWrapper, ReceivedMessage
-from httpmq.management import MgmtAPIWrapper
+from httpmq.dataplane import DataClient, ReceivedMessage
+from httpmq.management import ManagementClient
 from httpmq.models import (
     ManagementJSStreamParam,
     ManagementJetStreamConsumerParam,
@@ -29,7 +29,7 @@ class TestDataplane(BaseTestCase):
     def test_message_splitter(self):
         """Basic sanity check RxMessageSplitter"""
 
-        uut = DataAPIWrapper.RxMessageSplitter()
+        uut = DataClient.RxMessageSplitter()
 
         test_cases = [
             {
@@ -70,11 +70,11 @@ class TestDataplane(BaseTestCase):
         """Basic sanity check of management API client"""
 
         core_client = APIClient(base_url=get_unittest_httpmq_data_api_url())
-        data_client = DataAPIWrapper(api_client=core_client)
+        data_client = DataClient(api_client=core_client)
         await data_client.ready(context=RequestContext())
 
         another_client = APIClient(base_url="http://127.0.0.1:17881")
-        another_data_client = DataAPIWrapper(api_client=another_client)
+        another_data_client = DataClient(api_client=another_client)
         with self.assertRaises(aiohttp.client_exceptions.ClientConnectorError):
             await another_data_client.ready(context=RequestContext())
 
@@ -82,12 +82,12 @@ class TestDataplane(BaseTestCase):
     async def test_push_subscribe(self):
         """Basic functionality test of push subscription"""
 
-        mgmt_client = MgmtAPIWrapper(
+        mgmt_client = ManagementClient(
             api_client=APIClient(base_url=get_unittest_httpmq_mgmt_api_url())
         )
         await mgmt_client.ready(context=RequestContext())
 
-        data_client = DataAPIWrapper(
+        data_client = DataClient(
             api_client=APIClient(base_url=get_unittest_httpmq_data_api_url())
         )
         await data_client.ready(context=RequestContext())
