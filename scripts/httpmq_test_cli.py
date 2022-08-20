@@ -5,21 +5,24 @@
 # pylint: disable=no-value-for-parameter
 # pylint: disable=broad-except
 # pylint: disable=function-redefined
+# pylint: disable=too-many-arguments
 
 import asyncio
 from datetime import timedelta
 import json
 import logging
 from pathlib import Path
+import signal
 import ssl
 import traceback
-from typing import List
+from typing import List, Union
 import uuid
 import click
 
 from httpmq import configure_sdk_logging
 from httpmq.client import APIClient
-from httpmq.common import RequestContext
+from httpmq.common import HttpmqAPIError, RequestContext
+from httpmq.dataplane import DataAPIWrapper, ReceivedMessage
 from httpmq.management import MgmtAPIWrapper
 from httpmq.models import (
     ManagementJSStreamParam,
@@ -98,7 +101,7 @@ def cli(ctx, custom_ca_file: str, access_token: str, request_id: str, verbose: b
     help="Management server URL",
 )
 @click.pass_context
-def management(ctx, management_server_url: str):
+def manage(ctx, management_server_url: str):
     """Operate the httpmq management API"""
     ctx.obj["url"] = management_server_url
 
@@ -112,7 +115,7 @@ def define_management_client(ctx) -> MgmtAPIWrapper:
     return MgmtAPIWrapper(api_client=api_client)
 
 
-@management.command()
+@manage.command()
 @click.pass_context
 def ready(ctx):
     """Verify the management API is ready"""
@@ -137,7 +140,7 @@ def ready(ctx):
 # Stream management
 
 
-@management.group()
+@manage.group()
 @click.pass_context
 def stream(_):
     """Manages streams through httpmq management API"""
@@ -335,7 +338,7 @@ def change_retention(ctx, name: str, max_message_age_hours: float):
 # Consumer management
 
 
-@management.group()
+@manage.group()
 @click.option(
     "--target-stream",
     "-s",
@@ -477,6 +480,173 @@ def delete(ctx, name: str):
                 "".join(traceback.format_exception(type(err), err, err.__traceback__))
             )
         await mgmt_client.disconnect()
+
+    ctx.obj["asyncio_loop"].run_until_complete(core_func())
+
+
+################################################################################################
+#
+# HTTP MQ Data plane
+#
+################################################################################################
+
+
+@cli.group()
+@click.option(
+    "--dataplane-server-url",
+    "-s",
+    default="http://127.0.0.1:4101",
+    envvar="DATAPLANE_SERVER_URL",
+    show_envvar=True,
+    help="Dataplane server URL",
+)
+@click.pass_context
+def data(ctx, dataplane_server_url: str):
+    """Operate the httpmq dataplane API"""
+    ctx.obj["url"] = dataplane_server_url
+
+
+def define_dataplane_client(ctx) -> DataAPIWrapper:
+    """Define a dataplane API wrapper client"""
+    api_client = APIClient(
+        base_url=ctx.obj["url"],
+        ssl_context=ctx.obj["custom_ca"],
+    )
+    return DataAPIWrapper(api_client=api_client)
+
+
+@data.command()
+@click.pass_context
+def ready(ctx):
+    """Verify the dataplane API is ready"""
+    log = ctx.obj["logger"]
+
+    async def core_func():
+        """Core logic"""
+        data_client: DataAPIWrapper = define_dataplane_client(ctx)
+        try:
+            await data_client.ready(ctx.obj["context"])
+            log.info("Dataplane API Ready")
+        except Exception as err:
+            log.error(
+                "".join(traceback.format_exception(type(err), err, err.__traceback__))
+            )
+        await data_client.disconnect()
+
+    ctx.obj["asyncio_loop"].run_until_complete(core_func())
+
+
+@data.command()
+@click.option("--subject", "-s", required=True, help="Subject to publish message on")
+@click.option("--message", "-m", required=True, help="Message body")
+@click.pass_context
+def pub(ctx, subject: str, message: str):
+    """Publish messages on a subject through httpmq dataplane API"""
+    log = ctx.obj["logger"]
+
+    async def core_func():
+        """Core logic"""
+        data_client: DataAPIWrapper = define_dataplane_client(ctx)
+        try:
+            resp_rid = await data_client.publish(
+                subject=subject,
+                message=message.encode("utf-8"),
+                context=ctx.obj["context"],
+            )
+            log.debug("Returned request-id '%s'", resp_rid)
+        except Exception as err:
+            log.error(
+                "".join(traceback.format_exception(type(err), err, err.__traceback__))
+            )
+        await data_client.disconnect()
+
+    ctx.obj["asyncio_loop"].run_until_complete(core_func())
+
+
+@data.command()
+@click.option("--stream-name", "-s", required=True, help="Stream to operate on")
+@click.option("--consumer-name", "-c", required=True, help="Consumer to operate as")
+@click.option("--subject", "-t", required=True, help="Subject to subscribe for")
+@click.option(
+    "--max-inflight",
+    "-m",
+    type=int,
+    default=1,
+    help="Max number of inflight / unACKed messages allowed at once",
+)
+@click.option(
+    "--delivery-group", "-g", required=False, help="The consumer's delivery group"
+)
+@click.pass_context
+def sub(
+    ctx,
+    stream_name: str,
+    consumer_name: str,
+    subject: str,
+    max_inflight: int,
+    delivery_group: str = None,
+):
+    """Subscribe for messages as a consumer on a stream through httpmq dataplane API"""
+    log = ctx.obj["logger"]
+
+    # Process SIGINT
+    exit_event = asyncio.Event()
+
+    def stop_reading():
+        log.warning("Received 'SIGINT'")
+        exit_event.set()
+
+    ctx.obj["asyncio_loop"].add_signal_handler(getattr(signal, "SIGINT"), stop_reading)
+
+    async def core_func():
+        """Core logic"""
+        data_client: DataAPIWrapper = define_dataplane_client(ctx)
+        try:
+            # Callback function to process the messages
+            async def handle_msg(msg: Union[ReceivedMessage, HttpmqAPIError]):
+                """Callback function to process the messages"""
+                if isinstance(msg, HttpmqAPIError):
+                    exit_event.set()
+                    raise msg
+                if isinstance(msg, ReceivedMessage):
+                    # New message
+                    log.info(
+                        "Received MSG[S:%d, C:%d] as %s@%s/%s: '%s'",
+                        msg.stream_seq,
+                        msg.consumer_seq,
+                        msg.consumer,
+                        msg.stream,
+                        msg.subject,
+                        msg.message.decode("utf-8"),
+                    )
+                    # Return the ACK to indicate the message is processed
+                    resp_rid = await data_client.send_ack_simple(
+                        original_msg=msg, context=ctx.obj["context"]
+                    )
+                    log.debug("ACK Returned request-id '%s'", resp_rid)
+                    return
+                exit_event.set()
+                raise RuntimeError(
+                    f"Received unknown message type from push_subscribe: {type(msg)}"
+                )
+
+            # Connect to push-subscribe end-point
+            resp_rid = await data_client.push_subscribe(
+                stream=stream_name,
+                consumer=consumer_name,
+                subject_filter=subject,
+                forward_data_cb=handle_msg,
+                context=ctx.obj["context"],
+                stop_loop=exit_event,
+                max_msg_inflight=max_inflight,
+                delivery_group=delivery_group,
+            )
+            log.debug("Returned request-id '%s'", resp_rid)
+        except Exception as err:
+            log.error(
+                "".join(traceback.format_exception(type(err), err, err.__traceback__))
+            )
+        await data_client.disconnect()
 
     ctx.obj["asyncio_loop"].run_until_complete(core_func())
 
