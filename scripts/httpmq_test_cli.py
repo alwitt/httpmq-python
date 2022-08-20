@@ -112,11 +112,12 @@ def manage(ctx, management_server_url: str):
 
 def define_management_client(ctx) -> ManagementClient:
     """Define a management API wrapper client"""
-    api_client = APIClient(
-        base_url=ctx.obj["url"],
-        ssl_context=ctx.obj["custom_ca"],
+    return ManagementClient(
+        api_client=APIClient(
+            base_url=ctx.obj["url"],
+            ssl_context=ctx.obj["custom_ca"],
+        )
     )
-    return ManagementClient(api_client=api_client)
 
 
 @manage.command()
@@ -512,11 +513,12 @@ def data(ctx, dataplane_server_url: str):
 
 def define_dataplane_client(ctx) -> DataClient:
     """Define a dataplane API wrapper client"""
-    api_client = APIClient(
-        base_url=ctx.obj["url"],
-        ssl_context=ctx.obj["custom_ca"],
+    return DataClient(
+        api_client=APIClient(
+            base_url=ctx.obj["url"],
+            ssl_context=ctx.obj["custom_ca"],
+        )
     )
-    return DataClient(api_client=api_client)
 
 
 @data.command()

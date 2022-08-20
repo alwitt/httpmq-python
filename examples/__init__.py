@@ -1,0 +1,1 @@
+"""HTTP MQ Example Applications"""

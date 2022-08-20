@@ -13,8 +13,8 @@ venv/bin/activate: requirements.txt
 
 .PHONY: lint
 lint: .prep ## Run python lint
-	. venv/bin/activate; python3 -m black httpmq test scripts
-	. venv/bin/activate; pylint httpmq test scripts --min-similarity-lines=30 --ignore-paths=httpmq/models,httpmq/typing_utils.py,httpmq/util.py
+	. venv/bin/activate; python3 -m black httpmq test scripts examples
+	. venv/bin/activate; pylint httpmq test scripts examples --min-similarity-lines=30 --ignore-paths=httpmq/models,httpmq/typing_utils.py,httpmq/util.py
 
 .PHONY: build
 build: lint ## Build module
