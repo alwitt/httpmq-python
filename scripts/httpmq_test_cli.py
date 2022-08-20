@@ -8,6 +8,7 @@
 # pylint: disable=too-many-arguments
 
 import asyncio
+from copy import copy
 from datetime import timedelta
 import json
 import logging
@@ -589,6 +590,8 @@ def sub(
     """Subscribe for messages as a consumer on a stream through httpmq dataplane API"""
     log = ctx.obj["logger"]
 
+    sub_context: RequestContext = ctx.obj["context"]
+
     # Process SIGINT
     exit_event = asyncio.Event()
 
@@ -620,8 +623,11 @@ def sub(
                         msg.message.decode("utf-8"),
                     )
                     # Return the ACK to indicate the message is processed
+                    ack_context = RequestContext()
+                    if sub_context.auth_param:
+                        ack_context.auth_param = copy(sub_context.auth_param)
                     resp_rid = await data_client.send_ack_simple(
-                        original_msg=msg, context=ctx.obj["context"]
+                        original_msg=msg, context=ack_context
                     )
                     log.debug("ACK Returned request-id '%s'", resp_rid)
                     return
