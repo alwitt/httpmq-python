@@ -27,8 +27,6 @@ async def async_main(log: logging.Logger):
         )
         await mgmt_client.ready(context=RequestContext())
         log.info("Management API ready")
-    except Exception as err:
-        raise err
     finally:
         await mgmt_client.disconnect()
 
@@ -36,8 +34,6 @@ async def async_main(log: logging.Logger):
         data_client = DataClient(api_client=APIClient(base_url="http://127.0.0.1:4101"))
         await data_client.ready(context=RequestContext())
         log.info("Data plane API ready")
-    except Exception as err:
-        raise err
     finally:
         await data_client.disconnect()
 

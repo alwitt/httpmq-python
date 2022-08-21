@@ -69,8 +69,6 @@ async def async_main(log: logging.Logger):
             stream=stream_name, context=RequestContext()
         )
         log.info("Deleted stream %s with request %s", stream_name, resp_rid)
-    except Exception as err:
-        raise err
     finally:
         await mgmt_client.disconnect()
 

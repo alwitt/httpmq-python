@@ -3,7 +3,6 @@
 """HTTP MQ demo application"""
 
 # pylint: disable=no-value-for-parameter
-# pylint: disable=broad-except
 # pylint: disable=function-redefined
 # pylint: disable=too-many-arguments
 
@@ -15,7 +14,6 @@ import logging
 from pathlib import Path
 import signal
 import ssl
-import traceback
 from typing import List, Union
 import uuid
 import click
@@ -128,15 +126,12 @@ def ready(ctx):
 
     async def core_func():
         """Core logic"""
-        mgmt_client: ManagementClient = define_management_client(ctx)
         try:
+            mgmt_client: ManagementClient = define_management_client(ctx)
             await mgmt_client.ready(ctx.obj["context"])
             log.info("Management API Ready")
-        except Exception as err:
-            log.error(
-                "".join(traceback.format_exception(type(err), err, err.__traceback__))
-            )
-        await mgmt_client.disconnect()
+        finally:
+            await mgmt_client.disconnect()
 
     ctx.obj["asyncio_loop"].run_until_complete(core_func())
 
@@ -174,22 +169,21 @@ def create(ctx, name: str, subjects: List[str], max_message_age_hours: float):
 
     async def core_func():
         """Core logic"""
-        mgmt_client: ManagementClient = define_management_client(ctx)
-        params = ManagementJSStreamParam(
-            name=name,
-            subjects=subjects if subjects else [name],
-            max_age=int(timedelta(hours=max_message_age_hours).total_seconds() * 1e9),
-        )
         try:
+            mgmt_client: ManagementClient = define_management_client(ctx)
+            params = ManagementJSStreamParam(
+                name=name,
+                subjects=subjects if subjects else [name],
+                max_age=int(
+                    timedelta(hours=max_message_age_hours).total_seconds() * 1e9
+                ),
+            )
             resp_rid = await mgmt_client.create_stream(
                 params=params, context=ctx.obj["context"]
             )
             log.debug("Returned request-id '%s'", resp_rid)
-        except Exception as err:
-            log.error(
-                "".join(traceback.format_exception(type(err), err, err.__traceback__))
-            )
-        await mgmt_client.disconnect()
+        finally:
+            await mgmt_client.disconnect()
 
     ctx.obj["asyncio_loop"].run_until_complete(core_func())
 
@@ -202,8 +196,8 @@ def list_all(ctx):
 
     async def core_func():
         """Core logic"""
-        mgmt_client: ManagementClient = define_management_client(ctx)
         try:
+            mgmt_client: ManagementClient = define_management_client(ctx)
             all_streams, resp_rid = await mgmt_client.list_all_streams(
                 context=ctx.obj["context"]
             )
@@ -214,11 +208,8 @@ def list_all(ctx):
                 for stream_name, stream_param in all_streams.items()
             }
             log.info("Available streams:\n%s", json.dumps(for_output, indent="  "))
-        except Exception as err:
-            log.error(
-                "".join(traceback.format_exception(type(err), err, err.__traceback__))
-            )
-        await mgmt_client.disconnect()
+        finally:
+            await mgmt_client.disconnect()
 
     ctx.obj["asyncio_loop"].run_until_complete(core_func())
 
@@ -232,8 +223,8 @@ def get(ctx, name: str):
 
     async def core_func():
         """Core logic"""
-        mgmt_client: ManagementClient = define_management_client(ctx)
         try:
+            mgmt_client: ManagementClient = define_management_client(ctx)
             one_stream, resp_rid = await mgmt_client.get_stream(
                 stream=name, context=ctx.obj["context"]
             )
@@ -241,11 +232,8 @@ def get(ctx, name: str):
             log.info(
                 "Stream %s:\n%s", name, json.dumps(one_stream.to_dict(), indent="  ")
             )
-        except Exception as err:
-            log.error(
-                "".join(traceback.format_exception(type(err), err, err.__traceback__))
-            )
-        await mgmt_client.disconnect()
+        finally:
+            await mgmt_client.disconnect()
 
     ctx.obj["asyncio_loop"].run_until_complete(core_func())
 
@@ -259,17 +247,14 @@ def delete(ctx, name: str):
 
     async def core_func():
         """Core logic"""
-        mgmt_client: ManagementClient = define_management_client(ctx)
         try:
+            mgmt_client: ManagementClient = define_management_client(ctx)
             resp_rid = await mgmt_client.delete_stream(
                 stream=name, context=ctx.obj["context"]
             )
             log.debug("Returned request-id '%s'", resp_rid)
-        except Exception as err:
-            log.error(
-                "".join(traceback.format_exception(type(err), err, err.__traceback__))
-            )
-        await mgmt_client.disconnect()
+        finally:
+            await mgmt_client.disconnect()
 
     ctx.obj["asyncio_loop"].run_until_complete(core_func())
 
@@ -290,17 +275,14 @@ def change_subject(ctx, name: str, subjects: List[str]):
 
     async def core_func():
         """Core logic"""
-        mgmt_client: ManagementClient = define_management_client(ctx)
         try:
+            mgmt_client: ManagementClient = define_management_client(ctx)
             resp_rid = await mgmt_client.change_stream_subjects(
                 stream=name, new_subjects=subjects, context=ctx.obj["context"]
             )
             log.debug("Returned request-id '%s'", resp_rid)
-        except Exception as err:
-            log.error(
-                "".join(traceback.format_exception(type(err), err, err.__traceback__))
-            )
-        await mgmt_client.disconnect()
+        finally:
+            await mgmt_client.disconnect()
 
     ctx.obj["asyncio_loop"].run_until_complete(core_func())
 
@@ -321,20 +303,19 @@ def change_retention(ctx, name: str, max_message_age_hours: float):
 
     async def core_func():
         """Core logic"""
-        mgmt_client: ManagementClient = define_management_client(ctx)
-        new_limits = ManagementJSStreamLimits(
-            max_age=int(timedelta(hours=max_message_age_hours).total_seconds() * 1e9),
-        )
         try:
+            mgmt_client: ManagementClient = define_management_client(ctx)
+            new_limits = ManagementJSStreamLimits(
+                max_age=int(
+                    timedelta(hours=max_message_age_hours).total_seconds() * 1e9
+                ),
+            )
             resp_rid = await mgmt_client.update_stream_limits(
                 stream=name, limits=new_limits, context=ctx.obj["context"]
             )
             log.debug("Returned request-id '%s'", resp_rid)
-        except Exception as err:
-            log.error(
-                "".join(traceback.format_exception(type(err), err, err.__traceback__))
-            )
-        await mgmt_client.disconnect()
+        finally:
+            await mgmt_client.disconnect()
 
     ctx.obj["asyncio_loop"].run_until_complete(core_func())
 
@@ -378,26 +359,23 @@ def create(
 
     async def core_func():
         """Core logic"""
-        mgmt_client: ManagementClient = define_management_client(ctx)
-        params = ManagementJetStreamConsumerParam(
-            name=name,
-            mode="push",
-            filter_subject=subject_filter,
-            max_inflight=max_inflight,
-            delivery_group=delivery_group,
-        )
         try:
+            mgmt_client: ManagementClient = define_management_client(ctx)
+            params = ManagementJetStreamConsumerParam(
+                name=name,
+                mode="push",
+                filter_subject=subject_filter,
+                max_inflight=max_inflight,
+                delivery_group=delivery_group,
+            )
             resp_rid = await mgmt_client.create_consumer_for_stream(
                 stream=ctx.obj["target_stream"],
                 params=params,
                 context=ctx.obj["context"],
             )
             log.debug("Returned request-id '%s'", resp_rid)
-        except Exception as err:
-            log.error(
-                "".join(traceback.format_exception(type(err), err, err.__traceback__))
-            )
-        await mgmt_client.disconnect()
+        finally:
+            await mgmt_client.disconnect()
 
     ctx.obj["asyncio_loop"].run_until_complete(core_func())
 
@@ -410,8 +388,8 @@ def list_all(ctx):
 
     async def core_func():
         """Core logic"""
-        mgmt_client: ManagementClient = define_management_client(ctx)
         try:
+            mgmt_client: ManagementClient = define_management_client(ctx)
             all_consumers, resp_rid = await mgmt_client.list_all_consumer_of_stream(
                 stream=ctx.obj["target_stream"],
                 context=ctx.obj["context"],
@@ -423,11 +401,8 @@ def list_all(ctx):
                 for consumer_name, consumer_param in all_consumers.items()
             }
             log.info("Available consumer:\n%s", json.dumps(for_output, indent="  "))
-        except Exception as err:
-            log.error(
-                "".join(traceback.format_exception(type(err), err, err.__traceback__))
-            )
-        await mgmt_client.disconnect()
+        finally:
+            await mgmt_client.disconnect()
 
     ctx.obj["asyncio_loop"].run_until_complete(core_func())
 
@@ -441,8 +416,8 @@ def get(ctx, name: str):
 
     async def core_func():
         """Core logic"""
-        mgmt_client: ManagementClient = define_management_client(ctx)
         try:
+            mgmt_client: ManagementClient = define_management_client(ctx)
             one_consumer, resp_rid = await mgmt_client.get_consumer_of_stream(
                 stream=ctx.obj["target_stream"],
                 context=ctx.obj["context"],
@@ -454,11 +429,8 @@ def get(ctx, name: str):
                 name,
                 json.dumps(one_consumer.to_dict(), indent="  "),
             )
-        except Exception as err:
-            log.error(
-                "".join(traceback.format_exception(type(err), err, err.__traceback__))
-            )
-        await mgmt_client.disconnect()
+        finally:
+            await mgmt_client.disconnect()
 
     ctx.obj["asyncio_loop"].run_until_complete(core_func())
 
@@ -472,19 +444,16 @@ def delete(ctx, name: str):
 
     async def core_func():
         """Core logic"""
-        mgmt_client: ManagementClient = define_management_client(ctx)
         try:
+            mgmt_client: ManagementClient = define_management_client(ctx)
             resp_rid = await mgmt_client.delete_consumer_on_stream(
                 stream=ctx.obj["target_stream"],
                 consumer=name,
                 context=ctx.obj["context"],
             )
             log.debug("Returned request-id '%s'", resp_rid)
-        except Exception as err:
-            log.error(
-                "".join(traceback.format_exception(type(err), err, err.__traceback__))
-            )
-        await mgmt_client.disconnect()
+        finally:
+            await mgmt_client.disconnect()
 
     ctx.obj["asyncio_loop"].run_until_complete(core_func())
 
@@ -529,15 +498,12 @@ def ready(ctx):
 
     async def core_func():
         """Core logic"""
-        data_client: DataClient = define_dataplane_client(ctx)
         try:
+            data_client: DataClient = define_dataplane_client(ctx)
             await data_client.ready(ctx.obj["context"])
             log.info("Dataplane API Ready")
-        except Exception as err:
-            log.error(
-                "".join(traceback.format_exception(type(err), err, err.__traceback__))
-            )
-        await data_client.disconnect()
+        finally:
+            await data_client.disconnect()
 
     ctx.obj["asyncio_loop"].run_until_complete(core_func())
 
@@ -552,19 +518,16 @@ def pub(ctx, subject: str, message: str):
 
     async def core_func():
         """Core logic"""
-        data_client: DataClient = define_dataplane_client(ctx)
         try:
+            data_client: DataClient = define_dataplane_client(ctx)
             resp_rid = await data_client.publish(
                 subject=subject,
                 message=message.encode("utf-8"),
                 context=ctx.obj["context"],
             )
             log.debug("Returned request-id '%s'", resp_rid)
-        except Exception as err:
-            log.error(
-                "".join(traceback.format_exception(type(err), err, err.__traceback__))
-            )
-        await data_client.disconnect()
+        finally:
+            await data_client.disconnect()
 
     ctx.obj["asyncio_loop"].run_until_complete(core_func())
 
@@ -608,9 +571,9 @@ def sub(
 
     async def core_func():
         """Core logic"""
-        data_client: DataClient = define_dataplane_client(ctx)
         try:
-            # Callback function to process the messages
+            data_client: DataClient = define_dataplane_client(ctx)
+
             async def handle_msg(msg: Union[ReceivedMessage, HttpmqAPIError]):
                 """Callback function to process the messages"""
                 if isinstance(msg, HttpmqAPIError):
@@ -653,11 +616,8 @@ def sub(
                 delivery_group=delivery_group,
             )
             log.debug("Returned request-id '%s'", resp_rid)
-        except Exception as err:
-            log.error(
-                "".join(traceback.format_exception(type(err), err, err.__traceback__))
-            )
-        await data_client.disconnect()
+        finally:
+            await data_client.disconnect()
 
     ctx.obj["asyncio_loop"].run_until_complete(core_func())
 
