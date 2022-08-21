@@ -7,14 +7,7 @@ import asyncio
 from typing import Union
 import uuid
 import aiohttp
-from httpmq.client import APIClient
-from httpmq.common import HttpmqAPIError, RequestContext
-from httpmq.dataplane import DataClient, ReceivedMessage
-from httpmq.management import ManagementClient
-from httpmq.models import (
-    ManagementJSStreamParam,
-    ManagementJetStreamConsumerParam,
-)
+import httpmq
 from . import (
     BaseTestCase,
     async_test,
@@ -29,7 +22,7 @@ class TestDataplane(BaseTestCase):
     def test_message_splitter(self):
         """Basic sanity check RxMessageSplitter"""
 
-        uut = DataClient.RxMessageSplitter()
+        uut = httpmq.DataClient.RxMessageSplitter()
 
         test_cases = [
             {
@@ -69,41 +62,43 @@ class TestDataplane(BaseTestCase):
     async def test_basic_sanity(self):
         """Basic sanity check of management API client"""
 
-        core_client = APIClient(base_url=get_unittest_httpmq_data_api_url())
-        data_client = DataClient(api_client=core_client)
-        await data_client.ready(context=RequestContext())
+        core_client = httpmq.APIClient(base_url=get_unittest_httpmq_data_api_url())
+        data_client = httpmq.DataClient(api_client=core_client)
+        await data_client.ready(context=httpmq.RequestContext())
 
-        another_client = APIClient(base_url="http://127.0.0.1:17881")
-        another_data_client = DataClient(api_client=another_client)
+        another_client = httpmq.APIClient(base_url="http://127.0.0.1:17881")
+        another_data_client = httpmq.DataClient(api_client=another_client)
         with self.assertRaises(aiohttp.client_exceptions.ClientConnectorError):
-            await another_data_client.ready(context=RequestContext())
+            await another_data_client.ready(context=httpmq.RequestContext())
 
     @async_test
     async def test_push_subscribe(self):
         """Basic functionality test of push subscription"""
 
-        mgmt_client = ManagementClient(
-            api_client=APIClient(base_url=get_unittest_httpmq_mgmt_api_url())
+        mgmt_client = httpmq.ManagementClient(
+            api_client=httpmq.APIClient(base_url=get_unittest_httpmq_mgmt_api_url())
         )
-        await mgmt_client.ready(context=RequestContext())
+        await mgmt_client.ready(context=httpmq.RequestContext())
 
-        data_client = DataClient(
-            api_client=APIClient(base_url=get_unittest_httpmq_data_api_url())
+        data_client = httpmq.DataClient(
+            api_client=httpmq.APIClient(base_url=get_unittest_httpmq_data_api_url())
         )
-        await data_client.ready(context=RequestContext())
+        await data_client.ready(context=httpmq.RequestContext())
 
         # Case 0: create a stream and consumer
         stream_0 = str(uuid.uuid4())
         subject_base = str(uuid.uuid4())
         subjects_0 = [f"{subject_base}.a", f"{subject_base}.b"]
         subject_wildcard = f"{subject_base}.*"
-        stream_0_param = ManagementJSStreamParam(name=stream_0, subjects=subjects_0)
-        context = RequestContext()
+        stream_0_param = httpmq.ManagementJSStreamParam(
+            name=stream_0, subjects=subjects_0
+        )
+        context = httpmq.RequestContext()
         self.assertEqual(
             context.request_id,
             await mgmt_client.create_stream(params=stream_0_param, context=context),
         )
-        context = RequestContext()
+        context = httpmq.RequestContext()
         stream_0_rb, rid = await mgmt_client.get_stream(
             stream=stream_0, context=context
         )
@@ -111,13 +106,13 @@ class TestDataplane(BaseTestCase):
         self.assertEqual(stream_0_rb.config.name, stream_0)
         self.assertListEqual(stream_0_rb.config.subjects, subjects_0)
         consumer_0 = str(uuid.uuid4())
-        consumer_param = ManagementJetStreamConsumerParam(
+        consumer_param = httpmq.ManagementJetStreamConsumerParam(
             name=consumer_0,
             mode="push",
             max_inflight=1,
             filter_subject=subjects_0[0],
         )
-        context = RequestContext()
+        context = httpmq.RequestContext()
         self.assertEqual(
             context.request_id,
             await mgmt_client.create_consumer_for_stream(
@@ -125,13 +120,13 @@ class TestDataplane(BaseTestCase):
             ),
         )
         consumer_1 = str(uuid.uuid4())
-        consumer_param = ManagementJetStreamConsumerParam(
+        consumer_param = httpmq.ManagementJetStreamConsumerParam(
             name=consumer_1,
             mode="push",
             max_inflight=1,
             filter_subject=subjects_0[1],
         )
-        context = RequestContext()
+        context = httpmq.RequestContext()
         self.assertEqual(
             context.request_id,
             await mgmt_client.create_consumer_for_stream(
@@ -139,13 +134,13 @@ class TestDataplane(BaseTestCase):
             ),
         )
         consumer_2 = str(uuid.uuid4())
-        consumer_param = ManagementJetStreamConsumerParam(
+        consumer_param = httpmq.ManagementJetStreamConsumerParam(
             name=consumer_2,
             mode="push",
             max_inflight=1,
             filter_subject=subject_wildcard,
         )
-        context = RequestContext()
+        context = httpmq.RequestContext()
         self.assertEqual(
             context.request_id,
             await mgmt_client.create_consumer_for_stream(
@@ -153,7 +148,7 @@ class TestDataplane(BaseTestCase):
             ),
         )
         # Verify the consumers are defined
-        context = RequestContext()
+        context = httpmq.RequestContext()
         all_consumers, rid = await mgmt_client.list_all_consumer_of_stream(
             stream=stream_0, context=context
         )
@@ -168,7 +163,9 @@ class TestDataplane(BaseTestCase):
         consumer_rb = all_consumers[consumer_2]
         self.assertEqual(consumer_rb.config.filter_subject, subject_wildcard)
 
-        async def dummy_rx_handler(_: Union[ReceivedMessage, HttpmqAPIError]):
+        async def dummy_rx_handler(
+            _: Union[httpmq.ReceivedMessage, httpmq.HttpmqAPIError]
+        ):
             """Dummy RX receive function"""
 
         # Case 1: test client disconnect
@@ -178,7 +175,7 @@ class TestDataplane(BaseTestCase):
                 stream=stream_0,
                 consumer=consumer_0,
                 subject_filter=subjects_0[0],
-                context=RequestContext(),
+                context=httpmq.RequestContext(),
                 stop_loop=rx_runner_stop_signal,
                 forward_data_cb=dummy_rx_handler,
             )
@@ -194,23 +191,29 @@ class TestDataplane(BaseTestCase):
         consumer_1_rx_msgs = asyncio.Queue()
         consumer_2_rx_msgs = asyncio.Queue()
 
-        async def consumer_0_store_msg(msg: Union[ReceivedMessage, HttpmqAPIError]):
+        async def consumer_0_store_msg(
+            msg: Union[httpmq.ReceivedMessage, httpmq.HttpmqAPIError]
+        ):
             """Consumer 0 record message"""
-            self.assertIsInstance(msg, ReceivedMessage)
+            self.assertIsInstance(msg, httpmq.ReceivedMessage)
             await consumer_0_rx_msgs.put(msg)
 
-        async def consumer_1_store_msg(msg: Union[ReceivedMessage, HttpmqAPIError]):
+        async def consumer_1_store_msg(
+            msg: Union[httpmq.ReceivedMessage, httpmq.HttpmqAPIError]
+        ):
             """Consumer 1 record message"""
-            self.assertIsInstance(msg, ReceivedMessage)
+            self.assertIsInstance(msg, httpmq.ReceivedMessage)
             await consumer_1_rx_msgs.put(msg)
 
-        async def consumer_2_store_msg(msg: Union[ReceivedMessage, HttpmqAPIError]):
+        async def consumer_2_store_msg(
+            msg: Union[httpmq.ReceivedMessage, httpmq.HttpmqAPIError]
+        ):
             """Consumer 2 record message"""
-            self.assertIsInstance(msg, ReceivedMessage)
+            self.assertIsInstance(msg, httpmq.ReceivedMessage)
             await consumer_2_rx_msgs.put(msg)
 
         consumer_0_stop = asyncio.Event()
-        consumer_0_runner_context = RequestContext()
+        consumer_0_runner_context = httpmq.RequestContext()
         consumer_0_rx_runner = asyncio.create_task(
             data_client.push_subscribe(
                 stream=stream_0,
@@ -223,7 +226,7 @@ class TestDataplane(BaseTestCase):
         )
 
         consumer_1_stop = asyncio.Event()
-        consumer_1_runner_context = RequestContext()
+        consumer_1_runner_context = httpmq.RequestContext()
         consumer_1_rx_runner = asyncio.create_task(
             data_client.push_subscribe(
                 stream=stream_0,
@@ -236,7 +239,7 @@ class TestDataplane(BaseTestCase):
         )
 
         consumer_2_stop = asyncio.Event()
-        consumer_2_runner_context = RequestContext()
+        consumer_2_runner_context = httpmq.RequestContext()
         consumer_2_rx_runner = asyncio.create_task(
             data_client.push_subscribe(
                 stream=stream_0,
@@ -250,7 +253,7 @@ class TestDataplane(BaseTestCase):
 
         # Case 2: Send message to subject.0
         msg = str(uuid.uuid4()).encode("utf-8")
-        context = RequestContext()
+        context = httpmq.RequestContext()
         self.assertEqual(
             context.request_id,
             await data_client.publish(
@@ -260,13 +263,13 @@ class TestDataplane(BaseTestCase):
         # Verify consumer 0 received it
         received = await consumer_0_rx_msgs.get()
         consumer_0_rx_msgs.task_done()
-        self.assertIsInstance(received, ReceivedMessage)
-        rx_msg: ReceivedMessage = received
+        self.assertIsInstance(received, httpmq.ReceivedMessage)
+        rx_msg: httpmq.ReceivedMessage = received
         self.assertEqual(rx_msg.stream, stream_0)
         self.assertEqual(rx_msg.consumer, consumer_0)
         self.assertEqual(rx_msg.subject, subjects_0[0])
         self.assertEqual(rx_msg.message, msg)
-        context = RequestContext()
+        context = httpmq.RequestContext()
         self.assertEqual(
             context.request_id,
             await data_client.send_ack_simple(original_msg=rx_msg, context=context),
@@ -274,13 +277,13 @@ class TestDataplane(BaseTestCase):
         # Verify consumer 2 received it
         received = await consumer_2_rx_msgs.get()
         consumer_2_rx_msgs.task_done()
-        self.assertIsInstance(received, ReceivedMessage)
-        rx_msg: ReceivedMessage = received
+        self.assertIsInstance(received, httpmq.ReceivedMessage)
+        rx_msg: httpmq.ReceivedMessage = received
         self.assertEqual(rx_msg.stream, stream_0)
         self.assertEqual(rx_msg.consumer, consumer_2)
         self.assertEqual(rx_msg.subject, subject_wildcard)
         self.assertEqual(rx_msg.message, msg)
-        context = RequestContext()
+        context = httpmq.RequestContext()
         self.assertEqual(
             context.request_id,
             await data_client.send_ack_simple(original_msg=rx_msg, context=context),
@@ -291,7 +294,7 @@ class TestDataplane(BaseTestCase):
 
         # Case 3: Send message to subject.1
         msg = str(uuid.uuid4()).encode("utf-8")
-        context = RequestContext()
+        context = httpmq.RequestContext()
         self.assertEqual(
             context.request_id,
             await data_client.publish(
@@ -301,13 +304,13 @@ class TestDataplane(BaseTestCase):
         # Verify consumer 1 received it
         received = await consumer_1_rx_msgs.get()
         consumer_1_rx_msgs.task_done()
-        self.assertIsInstance(received, ReceivedMessage)
-        rx_msg: ReceivedMessage = received
+        self.assertIsInstance(received, httpmq.ReceivedMessage)
+        rx_msg: httpmq.ReceivedMessage = received
         self.assertEqual(rx_msg.stream, stream_0)
         self.assertEqual(rx_msg.consumer, consumer_1)
         self.assertEqual(rx_msg.subject, subjects_0[1])
         self.assertEqual(rx_msg.message, msg)
-        context = RequestContext()
+        context = httpmq.RequestContext()
         self.assertEqual(
             context.request_id,
             await data_client.send_ack_simple(original_msg=rx_msg, context=context),
@@ -315,13 +318,13 @@ class TestDataplane(BaseTestCase):
         # Verify consumer 2 received it
         received = await consumer_2_rx_msgs.get()
         consumer_2_rx_msgs.task_done()
-        self.assertIsInstance(received, ReceivedMessage)
-        rx_msg: ReceivedMessage = received
+        self.assertIsInstance(received, httpmq.ReceivedMessage)
+        rx_msg: httpmq.ReceivedMessage = received
         self.assertEqual(rx_msg.stream, stream_0)
         self.assertEqual(rx_msg.consumer, consumer_2)
         self.assertEqual(rx_msg.subject, subject_wildcard)
         self.assertEqual(rx_msg.message, msg)
-        context = RequestContext()
+        context = httpmq.RequestContext()
         self.assertEqual(
             context.request_id,
             await data_client.send_ack_simple(original_msg=rx_msg, context=context),
@@ -331,7 +334,7 @@ class TestDataplane(BaseTestCase):
             consumer_0_rx_msgs.get_nowait()
 
         # Case 4: Send message to unknown subject
-        with self.assertRaises(HttpmqAPIError):
+        with self.assertRaises(httpmq.HttpmqAPIError):
             await data_client.publish(
                 subject=str(uuid.uuid4()),
                 message=str(uuid.uuid4()).encode("utf-8"),
@@ -354,10 +357,12 @@ class TestDataplane(BaseTestCase):
         self.assertEqual(consumer_2_rid, consumer_2_runner_context.request_id)
 
         # Delete the stream
-        context = RequestContext()
+        context = httpmq.RequestContext()
         self.assertEqual(
             context.request_id,
             await mgmt_client.delete_stream(stream=stream_0, context=context),
         )
-        with self.assertRaises(HttpmqAPIError):
-            await mgmt_client.get_stream(stream=stream_0, context=RequestContext())
+        with self.assertRaises(httpmq.HttpmqAPIError):
+            await mgmt_client.get_stream(
+                stream=stream_0, context=httpmq.RequestContext()
+            )

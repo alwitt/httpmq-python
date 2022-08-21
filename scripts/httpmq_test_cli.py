@@ -17,17 +17,7 @@ import ssl
 from typing import List, Union
 import uuid
 import click
-
-from httpmq import configure_sdk_logging
-from httpmq.client import APIClient
-from httpmq.common import HttpmqAPIError, RequestContext
-from httpmq.dataplane import DataClient, ReceivedMessage
-from httpmq.management import ManagementClient
-from httpmq.models import (
-    ManagementJSStreamParam,
-    ManagementJSStreamLimits,
-    ManagementJetStreamConsumerParam,
-)
+import httpmq
 
 
 @click.group(context_settings={"show_default": True})
@@ -60,9 +50,9 @@ def cli(ctx, custom_ca_file: str, access_token: str, request_id: str, verbose: b
     ctx.ensure_object(dict)
 
     if verbose:
-        configure_sdk_logging(global_log_level=logging.DEBUG)
+        httpmq.configure_sdk_logging(global_log_level=logging.DEBUG)
     else:
-        configure_sdk_logging(global_log_level=logging.INFO)
+        httpmq.configure_sdk_logging(global_log_level=logging.INFO)
 
     ctx.obj["logger"] = logging.getLogger("httpmq-sdk.general")
 
@@ -75,7 +65,7 @@ def cli(ctx, custom_ca_file: str, access_token: str, request_id: str, verbose: b
         ctx.obj["custom_ca"] = None
 
     request_context = (
-        RequestContext()
+        httpmq.RequestContext()
         .set_request_id(request_id=request_id)
         .add_header("User-Agent", "httpmq-demo")
     )
@@ -108,10 +98,10 @@ def manage(ctx, management_server_url: str):
     ctx.obj["url"] = management_server_url
 
 
-def define_management_client(ctx) -> ManagementClient:
+def define_management_client(ctx) -> httpmq.ManagementClient:
     """Define a management API wrapper client"""
-    return ManagementClient(
-        api_client=APIClient(
+    return httpmq.ManagementClient(
+        api_client=httpmq.APIClient(
             base_url=ctx.obj["url"],
             ssl_context=ctx.obj["custom_ca"],
         )
@@ -127,7 +117,7 @@ def ready(ctx):
     async def core_func():
         """Core logic"""
         try:
-            mgmt_client: ManagementClient = define_management_client(ctx)
+            mgmt_client: httpmq.ManagementClient = define_management_client(ctx)
             await mgmt_client.ready(ctx.obj["context"])
             log.info("Management API Ready")
         finally:
@@ -170,8 +160,8 @@ def create(ctx, name: str, subjects: List[str], max_message_age_hours: float):
     async def core_func():
         """Core logic"""
         try:
-            mgmt_client: ManagementClient = define_management_client(ctx)
-            params = ManagementJSStreamParam(
+            mgmt_client: httpmq.ManagementClient = define_management_client(ctx)
+            params = httpmq.ManagementJSStreamParam(
                 name=name,
                 subjects=subjects if subjects else [name],
                 max_age=int(
@@ -197,7 +187,7 @@ def list_all(ctx):
     async def core_func():
         """Core logic"""
         try:
-            mgmt_client: ManagementClient = define_management_client(ctx)
+            mgmt_client: httpmq.ManagementClient = define_management_client(ctx)
             all_streams, resp_rid = await mgmt_client.list_all_streams(
                 context=ctx.obj["context"]
             )
@@ -224,7 +214,7 @@ def get(ctx, name: str):
     async def core_func():
         """Core logic"""
         try:
-            mgmt_client: ManagementClient = define_management_client(ctx)
+            mgmt_client: httpmq.ManagementClient = define_management_client(ctx)
             one_stream, resp_rid = await mgmt_client.get_stream(
                 stream=name, context=ctx.obj["context"]
             )
@@ -248,7 +238,7 @@ def delete(ctx, name: str):
     async def core_func():
         """Core logic"""
         try:
-            mgmt_client: ManagementClient = define_management_client(ctx)
+            mgmt_client: httpmq.ManagementClient = define_management_client(ctx)
             resp_rid = await mgmt_client.delete_stream(
                 stream=name, context=ctx.obj["context"]
             )
@@ -276,7 +266,7 @@ def change_subject(ctx, name: str, subjects: List[str]):
     async def core_func():
         """Core logic"""
         try:
-            mgmt_client: ManagementClient = define_management_client(ctx)
+            mgmt_client: httpmq.ManagementClient = define_management_client(ctx)
             resp_rid = await mgmt_client.change_stream_subjects(
                 stream=name, new_subjects=subjects, context=ctx.obj["context"]
             )
@@ -304,8 +294,8 @@ def change_retention(ctx, name: str, max_message_age_hours: float):
     async def core_func():
         """Core logic"""
         try:
-            mgmt_client: ManagementClient = define_management_client(ctx)
-            new_limits = ManagementJSStreamLimits(
+            mgmt_client: httpmq.ManagementClient = define_management_client(ctx)
+            new_limits = httpmq.ManagementJSStreamLimits(
                 max_age=int(
                     timedelta(hours=max_message_age_hours).total_seconds() * 1e9
                 ),
@@ -360,8 +350,8 @@ def create(
     async def core_func():
         """Core logic"""
         try:
-            mgmt_client: ManagementClient = define_management_client(ctx)
-            params = ManagementJetStreamConsumerParam(
+            mgmt_client: httpmq.ManagementClient = define_management_client(ctx)
+            params = httpmq.ManagementJetStreamConsumerParam(
                 name=name,
                 mode="push",
                 filter_subject=subject_filter,
@@ -389,7 +379,7 @@ def list_all(ctx):
     async def core_func():
         """Core logic"""
         try:
-            mgmt_client: ManagementClient = define_management_client(ctx)
+            mgmt_client: httpmq.ManagementClient = define_management_client(ctx)
             all_consumers, resp_rid = await mgmt_client.list_all_consumer_of_stream(
                 stream=ctx.obj["target_stream"],
                 context=ctx.obj["context"],
@@ -417,7 +407,7 @@ def get(ctx, name: str):
     async def core_func():
         """Core logic"""
         try:
-            mgmt_client: ManagementClient = define_management_client(ctx)
+            mgmt_client: httpmq.ManagementClient = define_management_client(ctx)
             one_consumer, resp_rid = await mgmt_client.get_consumer_of_stream(
                 stream=ctx.obj["target_stream"],
                 context=ctx.obj["context"],
@@ -445,7 +435,7 @@ def delete(ctx, name: str):
     async def core_func():
         """Core logic"""
         try:
-            mgmt_client: ManagementClient = define_management_client(ctx)
+            mgmt_client: httpmq.ManagementClient = define_management_client(ctx)
             resp_rid = await mgmt_client.delete_consumer_on_stream(
                 stream=ctx.obj["target_stream"],
                 consumer=name,
@@ -480,10 +470,10 @@ def data(ctx, dataplane_server_url: str):
     ctx.obj["url"] = dataplane_server_url
 
 
-def define_dataplane_client(ctx) -> DataClient:
+def define_dataplane_client(ctx) -> httpmq.DataClient:
     """Define a dataplane API wrapper client"""
-    return DataClient(
-        api_client=APIClient(
+    return httpmq.DataClient(
+        api_client=httpmq.APIClient(
             base_url=ctx.obj["url"],
             ssl_context=ctx.obj["custom_ca"],
         )
@@ -499,7 +489,7 @@ def ready(ctx):
     async def core_func():
         """Core logic"""
         try:
-            data_client: DataClient = define_dataplane_client(ctx)
+            data_client: httpmq.DataClient = define_dataplane_client(ctx)
             await data_client.ready(ctx.obj["context"])
             log.info("Dataplane API Ready")
         finally:
@@ -519,7 +509,7 @@ def pub(ctx, subject: str, message: str):
     async def core_func():
         """Core logic"""
         try:
-            data_client: DataClient = define_dataplane_client(ctx)
+            data_client: httpmq.DataClient = define_dataplane_client(ctx)
             resp_rid = await data_client.publish(
                 subject=subject,
                 message=message.encode("utf-8"),
@@ -558,7 +548,7 @@ def sub(
     """Subscribe for messages as a consumer on a stream through httpmq dataplane API"""
     log = ctx.obj["logger"]
 
-    sub_context: RequestContext = ctx.obj["context"]
+    sub_context: httpmq.RequestContext = ctx.obj["context"]
 
     # Process SIGINT
     exit_event = asyncio.Event()
@@ -572,14 +562,16 @@ def sub(
     async def core_func():
         """Core logic"""
         try:
-            data_client: DataClient = define_dataplane_client(ctx)
+            data_client: httpmq.DataClient = define_dataplane_client(ctx)
 
-            async def handle_msg(msg: Union[ReceivedMessage, HttpmqAPIError]):
+            async def handle_msg(
+                msg: Union[httpmq.ReceivedMessage, httpmq.HttpmqAPIError]
+            ):
                 """Callback function to process the messages"""
-                if isinstance(msg, HttpmqAPIError):
+                if isinstance(msg, httpmq.HttpmqAPIError):
                     exit_event.set()
                     raise msg
-                if isinstance(msg, ReceivedMessage):
+                if isinstance(msg, httpmq.ReceivedMessage):
                     # New message
                     log.info(
                         "Received MSG[S:%d, C:%d] as %s@%s/%s: '%s'",
@@ -591,7 +583,7 @@ def sub(
                         msg.message.decode("utf-8"),
                     )
                     # Return the ACK to indicate the message is processed
-                    ack_context = RequestContext()
+                    ack_context = httpmq.RequestContext()
                     if sub_context.auth_param:
                         ack_context.auth_param = copy(sub_context.auth_param)
                     resp_rid = await data_client.send_ack_simple(

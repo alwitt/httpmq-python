@@ -10,12 +10,7 @@ import json
 import logging
 import uuid
 import click
-
-from httpmq import configure_sdk_logging
-from httpmq.client import APIClient
-from httpmq.common import RequestContext
-from httpmq.management import ManagementClient
-from httpmq.models import ManagementJSStreamParam, ManagementJSStreamLimits
+import httpmq
 
 
 async def async_main(log: logging.Logger):
@@ -23,27 +18,27 @@ async def async_main(log: logging.Logger):
 
     try:
         # Define httpmq management API client
-        mgmt_client = ManagementClient(
-            api_client=APIClient(base_url="http://127.0.0.1:4100")
+        mgmt_client = httpmq.ManagementClient(
+            api_client=httpmq.APIClient(base_url="http://127.0.0.1:4100")
         )
-        await mgmt_client.ready(context=RequestContext())
+        await mgmt_client.ready(context=httpmq.RequestContext())
         log.info("Management API ready")
 
         # Define a stream
         stream_name = str(uuid.uuid4())
         resp_rid = await mgmt_client.create_stream(
-            params=ManagementJSStreamParam(
+            params=httpmq.ManagementJSStreamParam(
                 name=stream_name,
                 subjects=["subj.1", "subj.2"],
                 max_age=int(timedelta(minutes=1).total_seconds() * 1e9),
             ),
-            context=RequestContext(),
+            context=httpmq.RequestContext(),
         )
         log.info("Create stream %s with request %s", stream_name, resp_rid)
 
         # Read back that stream
         stream_param, resp_rid = await mgmt_client.get_stream(
-            stream=stream_name, context=RequestContext()
+            stream=stream_name, context=httpmq.RequestContext()
         )
         log.info(
             "Stream %s parameters, read in %s:\n%s",
@@ -56,7 +51,7 @@ async def async_main(log: logging.Logger):
         resp_rid = await mgmt_client.change_stream_subjects(
             stream=stream_name,
             new_subjects=["subj.2", "subj.3"],
-            context=RequestContext(),
+            context=httpmq.RequestContext(),
         )
         log.info(
             "Changed stream %s's target subjects with request %s", stream_name, resp_rid
@@ -64,7 +59,7 @@ async def async_main(log: logging.Logger):
 
         # Read back that stream
         stream_param, resp_rid = await mgmt_client.get_stream(
-            stream=stream_name, context=RequestContext()
+            stream=stream_name, context=httpmq.RequestContext()
         )
         log.info(
             "Stream %s parameters, read in %s:\n%s",
@@ -76,10 +71,10 @@ async def async_main(log: logging.Logger):
         # Change the stream's retention policy
         resp_rid = await mgmt_client.update_stream_limits(
             stream=stream_name,
-            limits=ManagementJSStreamLimits(
+            limits=httpmq.ManagementJSStreamLimits(
                 max_age=int(timedelta(minutes=15).total_seconds() * 1e9)
             ),
-            context=RequestContext(),
+            context=httpmq.RequestContext(),
         )
         log.info(
             "Changed stream %s's data retention with request %s", stream_name, resp_rid
@@ -87,7 +82,7 @@ async def async_main(log: logging.Logger):
 
         # Read back that stream
         stream_param, resp_rid = await mgmt_client.get_stream(
-            stream=stream_name, context=RequestContext()
+            stream=stream_name, context=httpmq.RequestContext()
         )
         log.info(
             "Stream %s parameters, read in %s:\n%s",
@@ -98,7 +93,7 @@ async def async_main(log: logging.Logger):
 
         # Delete the stream
         resp_rid = await mgmt_client.delete_stream(
-            stream=stream_name, context=RequestContext()
+            stream=stream_name, context=httpmq.RequestContext()
         )
         log.info("Deleted stream %s with request %s", stream_name, resp_rid)
     finally:
@@ -110,9 +105,9 @@ async def async_main(log: logging.Logger):
 def main(verbose: bool):
     """Basic example showing how to manage streams with the client."""
     if verbose:
-        configure_sdk_logging(global_log_level=logging.DEBUG)
+        httpmq.configure_sdk_logging(global_log_level=logging.DEBUG)
     else:
-        configure_sdk_logging(global_log_level=logging.INFO)
+        httpmq.configure_sdk_logging(global_log_level=logging.INFO)
 
     log = logging.getLogger("httpmq-sdk.general")
 

@@ -9,8 +9,6 @@ from aiohttp import web
 from aiohttp.test_utils import AioHTTPTestCase
 from multidict import CIMultiDict
 import httpmq
-from httpmq.client import APIClient
-from httpmq.common import RequestContext
 
 
 class DummyServer:
@@ -139,11 +137,11 @@ class TestAPIClient(AioHTTPTestCase):
         # Check GET on the ready end-point of httpmq management APIs
         base_url = f"http://{test_server.host}:{test_server.port}"
 
-        uut = APIClient(base_url=base_url)
+        uut = httpmq.APIClient(base_url=base_url)
 
         # Case 0: test basic operation
         context = (
-            RequestContext()
+            httpmq.RequestContext()
             .add_header("hello", "world")
             .add_header("hello", "again")
             .add_param("checking", "1")
@@ -153,17 +151,17 @@ class TestAPIClient(AioHTTPTestCase):
         self.assertEqual(set(response.headers.getall("checking")), {"1"})
         self.assertEqual(set(response.headers.getall("hello")), {"world", "again"})
         self.assertEqual(
-            set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
+            set(response.headers.getall(httpmq.common.DEFAULT_REQUEST_ID_FIELD)),
             {context.request_id},
         )
 
         # Case 1: test error code
         self.test_handler.expected_status = 500
-        context = RequestContext()
+        context = httpmq.RequestContext()
         response = await uut.get(path="/test", context=context)
         self.assertEqual(500, response.status)
         self.assertEqual(
-            set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
+            set(response.headers.getall(httpmq.common.DEFAULT_REQUEST_ID_FIELD)),
             {context.request_id},
         )
 
@@ -171,11 +169,11 @@ class TestAPIClient(AioHTTPTestCase):
         self.test_handler.expected_status = 200
         test_msg = str(uuid.uuid4()).encode("utf-8")
         self.test_handler.expected_result = test_msg
-        context = RequestContext()
+        context = httpmq.RequestContext()
         response = await uut.get(path="/test", context=context)
         self.assertEqual(200, response.status)
         self.assertEqual(
-            set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
+            set(response.headers.getall(httpmq.common.DEFAULT_REQUEST_ID_FIELD)),
             {context.request_id},
         )
         self.assertEqual(response.content, test_msg)
@@ -188,14 +186,14 @@ class TestAPIClient(AioHTTPTestCase):
         # Check POST on the ready end-point of httpmq management APIs
         base_url = f"http://{test_server.host}:{test_server.port}"
 
-        uut = APIClient(base_url=base_url)
+        uut = httpmq.APIClient(base_url=base_url)
 
         # Case 0: test basic operation
         param_1 = str(uuid.uuid4())
         header_1 = str(uuid.uuid4())
         header_2 = str(uuid.uuid4())
         context = (
-            RequestContext()
+            httpmq.RequestContext()
             .add_header("hello", header_1)
             .add_header("hello", header_2)
             .add_param("checking", param_1)
@@ -205,28 +203,28 @@ class TestAPIClient(AioHTTPTestCase):
         self.assertEqual(set(response.headers.getall("checking")), {param_1})
         self.assertEqual(set(response.headers.getall("hello")), {header_1, header_2})
         self.assertEqual(
-            set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
+            set(response.headers.getall(httpmq.common.DEFAULT_REQUEST_ID_FIELD)),
             {context.request_id},
         )
 
         # Case 1: test request payload
         self.test_handler.echo_request_body_in_response = True
         test_msg = str(uuid.uuid4()).encode("utf-8")
-        context = RequestContext()
+        context = httpmq.RequestContext()
         response = await uut.post(path="/test", context=context, body=test_msg)
         self.assertEqual(
-            set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
+            set(response.headers.getall(httpmq.common.DEFAULT_REQUEST_ID_FIELD)),
             {context.request_id},
         )
         self.assertEqual(response.content, test_msg)
 
         # Case 2: test error code
         self.test_handler.expected_status = 400
-        context = RequestContext()
+        context = httpmq.RequestContext()
         response = await uut.post(path="/test", context=context, body=test_msg)
         self.assertEqual(400, response.status)
         self.assertEqual(
-            set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
+            set(response.headers.getall(httpmq.common.DEFAULT_REQUEST_ID_FIELD)),
             {context.request_id},
         )
 
@@ -238,14 +236,14 @@ class TestAPIClient(AioHTTPTestCase):
         # Check PUT on the ready end-point of httpmq management APIs
         base_url = f"http://{test_server.host}:{test_server.port}"
 
-        uut = APIClient(base_url=base_url)
+        uut = httpmq.APIClient(base_url=base_url)
 
         # Case 0: test basic operation
         param_1 = str(uuid.uuid4())
         header_1 = str(uuid.uuid4())
         header_2 = str(uuid.uuid4())
         context = (
-            RequestContext()
+            httpmq.RequestContext()
             .add_header("hello", header_1)
             .add_header("hello", header_2)
             .add_param("checking", param_1)
@@ -255,28 +253,28 @@ class TestAPIClient(AioHTTPTestCase):
         self.assertEqual(set(response.headers.getall("checking")), {param_1})
         self.assertEqual(set(response.headers.getall("hello")), {header_1, header_2})
         self.assertEqual(
-            set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
+            set(response.headers.getall(httpmq.common.DEFAULT_REQUEST_ID_FIELD)),
             {context.request_id},
         )
 
         # Case 1: test request payload
         self.test_handler.echo_request_body_in_response = True
         test_msg = str(uuid.uuid4()).encode("utf-8")
-        context = RequestContext()
+        context = httpmq.RequestContext()
         response = await uut.put(path="/test", context=context, body=test_msg)
         self.assertEqual(
-            set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
+            set(response.headers.getall(httpmq.common.DEFAULT_REQUEST_ID_FIELD)),
             {context.request_id},
         )
         self.assertEqual(response.content, test_msg)
 
         # Case 2: test error code
         self.test_handler.expected_status = 400
-        context = RequestContext()
+        context = httpmq.RequestContext()
         response = await uut.put(path="/test", context=context, body=test_msg)
         self.assertEqual(400, response.status)
         self.assertEqual(
-            set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
+            set(response.headers.getall(httpmq.common.DEFAULT_REQUEST_ID_FIELD)),
             {context.request_id},
         )
 
@@ -288,11 +286,11 @@ class TestAPIClient(AioHTTPTestCase):
         # Check DELETE on the ready end-point of httpmq management APIs
         base_url = f"http://{test_server.host}:{test_server.port}"
 
-        uut = APIClient(base_url=base_url)
+        uut = httpmq.APIClient(base_url=base_url)
 
         # Case 0: test basic operation
         context = (
-            RequestContext()
+            httpmq.RequestContext()
             .add_header("hello", "world")
             .add_header("hello", "again")
             .add_param("checking", "1")
@@ -302,17 +300,17 @@ class TestAPIClient(AioHTTPTestCase):
         self.assertEqual(set(response.headers.getall("checking")), {"1"})
         self.assertEqual(set(response.headers.getall("hello")), {"world", "again"})
         self.assertEqual(
-            set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
+            set(response.headers.getall(httpmq.common.DEFAULT_REQUEST_ID_FIELD)),
             {context.request_id},
         )
 
         # Case 1: test error code
         self.test_handler.expected_status = 500
-        context = RequestContext()
+        context = httpmq.RequestContext()
         response = await uut.delete(path="/test", context=context)
         self.assertEqual(500, response.status)
         self.assertEqual(
-            set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
+            set(response.headers.getall(httpmq.common.DEFAULT_REQUEST_ID_FIELD)),
             {context.request_id},
         )
 
@@ -320,11 +318,11 @@ class TestAPIClient(AioHTTPTestCase):
         self.test_handler.expected_status = 200
         test_msg = str(uuid.uuid4()).encode("utf-8")
         self.test_handler.expected_result = test_msg
-        context = RequestContext()
+        context = httpmq.RequestContext()
         response = await uut.post(path="/test", context=context)
         self.assertEqual(200, response.status)
         self.assertEqual(
-            set(response.headers.getall(httpmq.DEFAULT_REQUEST_ID_FIELD)),
+            set(response.headers.getall(httpmq.common.DEFAULT_REQUEST_ID_FIELD)),
             {context.request_id},
         )
         self.assertEqual(response.content, test_msg)
@@ -337,7 +335,7 @@ class TestAPIClient(AioHTTPTestCase):
         # Check GET on the ready end-point of httpmq management APIs
         base_url = f"http://{test_server.host}:{test_server.port}"
 
-        uut = APIClient(base_url=base_url)
+        uut = httpmq.APIClient(base_url=base_url)
 
         async def dummy_cb(_):
             """Dummy support callback function"""
@@ -347,7 +345,7 @@ class TestAPIClient(AioHTTPTestCase):
         rx_caller_0 = asyncio.create_task(
             uut.get_sse(
                 path="/msg",
-                context=RequestContext(),
+                context=httpmq.RequestContext(),
                 stop_loop=stop_signal_0,
                 forward_data_cb=dummy_cb,
             )
@@ -361,14 +359,14 @@ class TestAPIClient(AioHTTPTestCase):
         rx_caller_1 = asyncio.create_task(
             uut.get_sse(
                 path="/msg",
-                context=RequestContext(),
+                context=httpmq.RequestContext(),
                 stop_loop=asyncio.Event(),
                 forward_data_cb=dummy_cb,
             )
         )
         await asyncio.sleep(0.1)
         resp = await uut.post(
-            path="/msg", context=RequestContext().add_param("stop", "1")
+            path="/msg", context=httpmq.RequestContext().add_param("stop", "1")
         )
         self.assertEqual(200, resp.status)
         resp = await rx_caller_1
@@ -385,7 +383,7 @@ class TestAPIClient(AioHTTPTestCase):
         rx_caller_2 = asyncio.create_task(
             uut.get_sse(
                 path="/msg",
-                context=RequestContext(),
+                context=httpmq.RequestContext(),
                 stop_loop=stop_signal_2,
                 forward_data_cb=rx_msg_receive,
             )
@@ -393,12 +391,14 @@ class TestAPIClient(AioHTTPTestCase):
         for _ in range(2):
             # Send a msg to echo
             msg = str(uuid.uuid4()).encode("utf-8")
-            resp = await uut.post(path="/msg", context=RequestContext(), body=msg)
+            resp = await uut.post(
+                path="/msg", context=httpmq.RequestContext(), body=msg
+            )
             self.assertEqual(200, resp.status)
             # Wait for the message to come back
             rx_msg = await msg_queue.get()
             msg_queue.task_done()
-            self.assertTrue(isinstance(rx_msg, APIClient.StreamDataSegment))
+            self.assertTrue(isinstance(rx_msg, httpmq.APIClient.StreamDataSegment))
             self.assertEqual(
                 rx_msg.data.decode("utf-8").strip(), msg.decode("utf-8").strip()
             )
@@ -409,4 +409,4 @@ class TestAPIClient(AioHTTPTestCase):
         # Get one last message from queue
         rx_msg = await msg_queue.get()
         msg_queue.task_done()
-        self.assertTrue(isinstance(rx_msg, APIClient.StreamDataEnd))
+        self.assertTrue(isinstance(rx_msg, httpmq.APIClient.StreamDataEnd))

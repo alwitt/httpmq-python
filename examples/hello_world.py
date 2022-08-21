@@ -7,12 +7,7 @@
 import asyncio
 import logging
 import click
-
-from httpmq import configure_sdk_logging
-from httpmq.client import APIClient
-from httpmq.common import RequestContext
-from httpmq.dataplane import DataClient
-from httpmq.management import ManagementClient
+import httpmq
 
 
 async def async_main(log: logging.Logger):
@@ -22,17 +17,19 @@ async def async_main(log: logging.Logger):
     """
 
     try:
-        mgmt_client = ManagementClient(
-            api_client=APIClient(base_url="http://127.0.0.1:4100")
+        mgmt_client = httpmq.ManagementClient(
+            api_client=httpmq.APIClient(base_url="http://127.0.0.1:4100")
         )
-        await mgmt_client.ready(context=RequestContext())
+        await mgmt_client.ready(context=httpmq.RequestContext())
         log.info("Management API ready")
     finally:
         await mgmt_client.disconnect()
 
     try:
-        data_client = DataClient(api_client=APIClient(base_url="http://127.0.0.1:4101"))
-        await data_client.ready(context=RequestContext())
+        data_client = httpmq.DataClient(
+            api_client=httpmq.APIClient(base_url="http://127.0.0.1:4101")
+        )
+        await data_client.ready(context=httpmq.RequestContext())
         log.info("Data plane API ready")
     finally:
         await data_client.disconnect()
@@ -46,9 +43,9 @@ def main(verbose: bool):
     and `dataplane` API.
     """
     if verbose:
-        configure_sdk_logging(global_log_level=logging.DEBUG)
+        httpmq.configure_sdk_logging(global_log_level=logging.DEBUG)
     else:
-        configure_sdk_logging(global_log_level=logging.INFO)
+        httpmq.configure_sdk_logging(global_log_level=logging.INFO)
 
     log = logging.getLogger("httpmq-sdk.general")
 
