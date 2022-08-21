@@ -2,6 +2,11 @@
 
 Python client for [httpmq](https://github.com/alwitt/httpmq)
 
+[![MIT][License-Image]][License-Url] ![CICD workflow](https://github.com/alwitt/httpmq-python/actions/workflows/cicd.yaml/badge.svg) [![PyPI version](https://badge.fury.io/py/httpmq.svg)](https://badge.fury.io/py/httpmq)
+
+[License-Url]: https://mit-license.org/
+[License-Image]: https://img.shields.io/badge/License-MIT-blue.svg
+
 # Table of Content
 
 - [1. Introduction](#1-introduction)
