@@ -1,6 +1,7 @@
 """Test bench for httpmq.client"""
 
 # pylint: disable=too-few-public-methods
+# pylint: disable=attribute-defined-outside-init
 
 import asyncio
 import logging
@@ -110,12 +111,11 @@ class TestAPIClient(AioHTTPTestCase):
     @classmethod
     def setUpClass(cls):
         """To be called for all test cases"""
-        cls.test_handler = DummyServer()
         httpmq.configure_sdk_logging(global_log_level=logging.DEBUG)
 
     async def get_application(self) -> web.Application:
         """Return custom test server"""
-        await self.test_handler.reset()
+        self.test_handler = DummyServer()
         app = web.Application()
         app.router.add_routes(
             [
