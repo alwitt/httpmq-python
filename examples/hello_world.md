@@ -3,34 +3,32 @@
 Basic example showing how to define client instance for operating the `management` and `dataplane` API.
 
 ```python
+import asyncio
 import logging
-from httpmq.client import APIClient
-from httpmq.common import RequestContext
-from httpmq.dataplane import DataClient
-from httpmq.management import ManagementClient
+import httpmq
 
 
 async def async_main(log: logging.Logger):
+    """
+    Basic example showing how to define client instances for operating the `management`
+    and `dataplane` API.
+    """
 
     try:
-        mgmt_client = ManagementClient(
-            api_client=APIClient(base_url="http://127.0.0.1:4100")
+        mgmt_client = httpmq.ManagementClient(
+            api_client=httpmq.APIClient(base_url="http://127.0.0.1:4100")
         )
-        await mgmt_client.ready(context=RequestContext())
+        await mgmt_client.ready(context=httpmq.RequestContext())
         log.info("Management API ready")
-    except Exception as err:
-        raise err
     finally:
         await mgmt_client.disconnect()
 
     try:
-        data_client = DataClient(
-            api_client=APIClient(base_url="http://127.0.0.1:4101")
+        data_client = httpmq.DataClient(
+            api_client=httpmq.APIClient(base_url="http://127.0.0.1:4101")
         )
-        await data_client.ready(context=RequestContext())
+        await data_client.ready(context=httpmq.RequestContext())
         log.info("Data plane API ready")
-    except Exception as err:
-        raise err
     finally:
         await data_client.disconnect()
 ```
