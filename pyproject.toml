@@ -6,11 +6,13 @@ classifiers = [
   "Operating System :: OS Independent",
 ]
 description = "HTTP MQ Python client module"
+homepage = "https://github.com/alwitt/httpmq-python"
 keywords = ["httpmq"]
 license = "MIT"
 name = "httpmq"
 readme = "README.md"
-version = "0.1.0-rc.2"
+repository = "https://github.com/alwitt/httpmq-python"
+version = "0.1.0-rc.3"
 
 [tool.poetry.dependencies]
 aiohttp = ">=3.8"
@@ -24,6 +26,9 @@ click = ">=8.1"
 flake8 = ">=5.0"
 pylint = ">=2.14"
 pytest = ">=7.1"
+
+[tool.poetry.urls]
+"Bug Tracker" = "https://github.com/alwitt/httpmq-python/issues"
 
 [build-system]
 build-backend = "poetry.core.masonry.api"
