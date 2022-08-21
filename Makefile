@@ -19,7 +19,7 @@ lint: .prep ## Run python lint
 .PHONY: build
 build: lint ## Build module
 	rm -rf build dist httpmq.egg-info
-	. venv/bin/activate; python3 setup.py bdist_wheel
+	python3 -m build
 
 .PHONY: test
 test: ## Run unit-tests
