@@ -12,7 +12,7 @@ license = "MIT"
 name = "httpmq"
 readme = "README.md"
 repository = "https://github.com/alwitt/httpmq-python"
-version = "0.1.0-rc.5"
+version = "0.1.0"
 
 [tool.poetry.dependencies]
 aiohttp = ">=3.8"
